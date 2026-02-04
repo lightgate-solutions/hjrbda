@@ -1,0 +1,1557 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
+/** biome-ignore-all lint/a11y/noStaticElementInteractions: <> */
+/** biome-ignore-all lint/a11y/useKeyWithClickEvents: <> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: <> */
+/** biome-ignore-all lint/correctness/useExhaustiveDependencies: <> */
+// biome-ignore-all lint/style/noNonNullAssertion: <>
+"use client";
+
+import {
+  Archive,
+  FileIcon,
+  MoreVertical,
+  Eye,
+  Trash2,
+  Download,
+  Share,
+  Edit,
+  CheckCircle,
+  Calendar,
+  Clock,
+  User,
+  Settings,
+  ImagePlay,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { usePathname, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  addDocumentComment,
+  addDocumentShare,
+  archiveDocumentAction,
+  deleteDocumentAction,
+  deleteDocumentVersion,
+  getDocumentComments,
+  getDocumentLogs,
+  getDocumentShares,
+  getDocumentVersions,
+  getMyDocumentAccess,
+  removeDocumentShare,
+  searchEmployeesForShare,
+  updateDepartmentAccess,
+  updateDocumentPublic,
+  type getActiveFolderDocuments,
+} from "@/actions/documents/documents";
+import { Badge } from "../ui/badge";
+import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Dropzone, type FileWithMetadata } from "../ui/dropzone";
+import { uploadNewDocumentVersion } from "@/actions/documents/upload";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "../ui/sheet";
+import { ButtonGroup } from "../ui/button-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Spinner } from "../ui/spinner";
+import { Progress } from "../ui/progress";
+import { Separator } from "../ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+
+type DocumentType = NonNullable<
+  Awaited<ReturnType<typeof getActiveFolderDocuments>>["success"]
+>["docs"][number];
+
+export default function DocumentsTable({
+  documents,
+  paging,
+}: {
+  documents: DocumentType[];
+  paging?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages?: number;
+    hasMore?: boolean;
+  };
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [openSheetDocId, setOpenSheetDocId] = useState<number | null>(null);
+
+  const page = paging?.page ?? Number(searchParams?.get("page") ?? 1);
+  const pageSize =
+    paging?.pageSize ?? Number(searchParams?.get("pageSize") ?? 20);
+  const total = paging?.total;
+  const totalPages =
+    paging?.totalPages ??
+    (total !== undefined
+      ? Math.max(1, Math.ceil(total / pageSize))
+      : undefined);
+  const hasMore = paging?.hasMore ?? (totalPages ? page < totalPages : false);
+  const start = total !== undefined ? (page - 1) * pageSize + 1 : undefined;
+  const end =
+    total !== undefined ? Math.min(page * pageSize, total) : undefined;
+
+  function goToPage(p: number) {
+    if (p < 1) return;
+    if (totalPages && p > totalPages) return;
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("page", String(p));
+    params.set("pageSize", String(pageSize));
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12"></TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Uploaded By</TableHead>
+              <TableHead>Last Modified</TableHead>
+              <TableHead>Version</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {documents.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-center text-muted-foreground py-8"
+                >
+                  No documents found
+                </TableCell>
+              </TableRow>
+            ) : (
+              documents.map((doc, idx) => (
+                <TableRow
+                  key={idx}
+                  className="cursor-pointer"
+                  onClick={() => setOpenSheetDocId(doc.id)}
+                >
+                  <TableCell>
+                    <FileIcon size={24} className="text-green-600" />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {doc.title.charAt(0).toUpperCase() + doc.title.slice(1)}
+                  </TableCell>
+                  <TableCell>{doc.uploader}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {doc.updatedAt.toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">v{doc.currentVersion}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        doc.status === "active" ? "secondary" : "destructive"
+                      }
+                    >
+                      {doc.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell
+                    className="text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-end gap-2">
+                      <DocumentSheet
+                        doc={doc}
+                        pathname={pathname}
+                        open={openSheetDocId === doc.id}
+                        onOpenChange={(open) =>
+                          setOpenSheetDocId(open ? doc.id : null)
+                        }
+                      />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="px-2">
+                            <MoreVertical size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="space-y-1">
+                          <DropdownMenuItem
+                            className="hover:cursor-pointer"
+                            asChild
+                          >
+                            <DocumentsActions
+                              type="archive"
+                              id={doc.id}
+                              pathname={pathname}
+                            />
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600 hover:cursor-pointer"
+                            asChild
+                          >
+                            <DocumentsActions
+                              type="delete"
+                              id={doc.id}
+                              pathname={pathname}
+                            />
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {paging && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            {total !== undefined && start !== undefined && end !== undefined
+              ? `Showing ${start}-${end} of ${total}`
+              : null}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => goToPage(page + 1)}
+              disabled={!hasMore}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocumentsActions({
+  id,
+  pathname,
+  type,
+}: {
+  id: number;
+  pathname: string;
+  type: "delete" | "archive";
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        {type === "delete" ? (
+          <Button
+            className="flex w-full gap-3 hover:cursor-pointer"
+            variant="secondary"
+          >
+            <Trash2 className="mr-2" size={16} />
+            Delete
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            className="flex w-full gap-3 hover:cursor-pointer"
+          >
+            <Archive className="mr-2" size={16} />
+            Archive
+          </Button>
+        )}
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          {type === "delete" ? (
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              document and remove all its data from our servers.
+            </AlertDialogDescription>
+          ) : (
+            <AlertDialogDescription>
+              This action cannot be undone. This will archive the document and
+              move it to the archive page.
+            </AlertDialogDescription>
+          )}
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          {type === "delete" ? (
+            <AlertDialogAction
+              onClick={async () => {
+                const res = await deleteDocumentAction(id, pathname);
+                if (res.error) {
+                  toast.error(res.error.reason);
+                } else {
+                  toast.success(res.success.reason);
+                }
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          ) : (
+            <AlertDialogAction
+              onClick={async () => {
+                const res = await archiveDocumentAction(id, pathname);
+                if (res.error) {
+                  toast.error(res.error.reason);
+                } else {
+                  toast.success(res.success.reason);
+                }
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          )}
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function DocumentSheet({
+  doc,
+  pathname,
+  open,
+  onOpenChange,
+}: {
+  doc: DocumentType;
+  pathname: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [files, setFiles] = useState<FileWithMetadata[]>();
+  const [progress, setProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const router = useRouter();
+
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState("");
+
+  const [versions, setVersions] = useState<any[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [myAccess, setMyAccess] = useState<{
+    level: "none" | "view" | "edit" | "manage";
+    isOwner: boolean;
+    isAdminDepartment?: boolean;
+  } | null>(null);
+
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareLevel, setShareLevel] = useState<"view" | "edit" | "manage">(
+    "view",
+  );
+  const [shareSuggestions, setShareSuggestions] = useState<any[]>([]);
+  const [shareSuggestionsLoading, setShareSuggestionsLoading] = useState(false);
+  const [shares, setShares] = useState<any[]>([]);
+  const [sharesLoading, setSharesLoading] = useState(false);
+
+  const [publicValue, setPublicValue] = useState(!!doc.public);
+  const [pubUpdating, setPubUpdating] = useState(false);
+  const initialDeptLevel =
+    (doc.accessRules.find(
+      (r: any) => r.department && r.department === doc.department,
+    )?.accessLevel as "view" | "edit" | "manage") ?? "view";
+  const [deptEnabled, setDeptEnabled] = useState(!!doc.departmental);
+  const [deptLevel, setDeptLevel] = useState<"view" | "edit" | "manage">(
+    initialDeptLevel,
+  );
+  const [deptUpdating, setDeptUpdating] = useState(false);
+
+  async function loadComments() {
+    try {
+      setCommentsLoading(true);
+      const res = await getDocumentComments(doc.id);
+      if (res.success) {
+        setComments(res.success);
+      } else {
+        toast.error(res.error?.reason);
+      }
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
+  async function loadVersions() {
+    try {
+      setVersionsLoading(true);
+      const res = await getDocumentVersions(doc.id);
+      if (res.success) {
+        setVersions(res.success);
+      } else {
+        toast.error(res.error?.reason);
+      }
+    } finally {
+      setVersionsLoading(false);
+    }
+  }
+
+  async function loadLogs() {
+    try {
+      setLogsLoading(true);
+      const res = await getDocumentLogs(doc.id);
+      if (res.success) {
+        setLogs(res.success);
+      } else {
+        toast.error(res.error?.reason);
+      }
+    } finally {
+      setLogsLoading(false);
+    }
+  }
+
+  async function loadMyAccess() {
+    const res = await getMyDocumentAccess(doc.id);
+    if (res.success) {
+      setMyAccess(res.success);
+    } else {
+      toast.error(res.error.reason);
+    }
+  }
+
+  useEffect(() => {
+    loadMyAccess();
+  }, []);
+
+  async function loadShares() {
+    try {
+      setSharesLoading(true);
+      const res = await getDocumentShares(doc.id);
+      if (res.success) setShares(res.success);
+      else if (res.error) toast.error(res.error.reason);
+    } finally {
+      setSharesLoading(false);
+    }
+  }
+
+  async function handleShareAdd() {
+    const email = shareEmail.trim();
+    if (!email) return;
+    const res = await addDocumentShare(doc.id, email, shareLevel);
+    if (res.success) {
+      toast.success(res.success.reason);
+      setShareEmail("");
+      await loadShares();
+    } else {
+      toast.error(res.error?.reason ?? "Failed to add share");
+    }
+  }
+
+  async function handleShareRemove(userId: number) {
+    const res = await removeDocumentShare(doc.id, userId);
+    if (res.success) {
+      toast.success(res.success.reason);
+      await loadShares();
+    } else {
+      toast.error(res.error?.reason ?? "Failed to remove share");
+    }
+  }
+
+  useEffect(() => {
+    if (!shareEmail || shareEmail.length < 2) {
+      setShareSuggestions([]);
+      return;
+    }
+    let canceled = false;
+    setShareSuggestionsLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await searchEmployeesForShare(shareEmail);
+        if (!canceled) {
+          if (res.success) setShareSuggestions(res.success);
+          else setShareSuggestions([]);
+        }
+      } finally {
+        if (!canceled) setShareSuggestionsLoading(false);
+      }
+    }, 300);
+    return () => {
+      canceled = true;
+      clearTimeout(t);
+    };
+  }, [shareEmail]);
+
+  useEffect(() => {
+    if (activeTab === "comment") loadComments();
+    if (activeTab === "versions") loadVersions();
+    if (activeTab === "history") loadLogs();
+  }, [activeTab, doc.id]);
+
+  async function handleAddComment() {
+    const text = commentText.trim();
+    if (!text) return;
+    const res = await addDocumentComment(doc.id, text);
+    if (res.success) {
+      setCommentText("");
+      toast.success("Comment added");
+      await loadComments();
+      router.refresh();
+    } else {
+      toast.error(res.error?.reason ?? "Failed to add comment");
+    }
+  }
+
+  const uploadFile = async (file: File): Promise<string | null | undefined> => {
+    setFiles((prevFiles) =>
+      prevFiles?.map((f) => (f.file === file ? { ...f, uploading: true } : f)),
+    );
+
+    setProgress(30);
+    try {
+      const endpoint = "/api/r2/upload";
+      const presignedResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
+      });
+
+      setProgress(40);
+      if (!presignedResponse.ok) {
+        toast.error("Failed to get presigned URL");
+        setFiles((prevFiles) =>
+          prevFiles?.map((f) =>
+            f.file === file
+              ? { ...f, uploading: false, progress: 0, error: true }
+              : f,
+          ),
+        );
+        return null;
+      }
+
+      setProgress(50);
+      const { presignedUrl, key, publicUrl } = await presignedResponse.json();
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        setProgress(70);
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            setFiles((prevFiles) =>
+              prevFiles?.map((f) =>
+                f.file === file
+                  ? {
+                      ...f,
+                      progress: Math.round(percentComplete),
+                      key: key,
+                      publicUrl: publicUrl,
+                    }
+                  : f,
+              ),
+            );
+          }
+        };
+
+        setProgress(90);
+        xhr.onload = () => {
+          if (xhr.status === 200 || xhr.status === 204) {
+            setFiles((prevFiles) =>
+              prevFiles?.map((f) =>
+                f.file === file
+                  ? { ...f, progress: 100, uploading: false, error: false }
+                  : f,
+              ),
+            );
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with status: ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error("Upload failed"));
+        };
+
+        xhr.open("PUT", presignedUrl);
+        xhr.setRequestHeader("Content-Type", file.type);
+        xhr.send(file);
+      });
+      setProgress(100);
+      const url = process.env.CLOUDFLARE_R2_PUBLIC_URL!;
+      return publicUrl ?? `${url}/${encodeURIComponent(key)}`;
+    } catch (error) {
+      console.error(error);
+      toast.error("Upload failed");
+      setFiles((prevFiles) =>
+        prevFiles?.map((f) =>
+          f.file === file
+            ? { ...f, uploading: false, progress: 0, error: true }
+            : f,
+        ),
+      );
+      return null;
+    }
+  };
+
+  async function onSubmit() {
+    setIsUploading(true);
+    setProgress(0);
+
+    try {
+      if (!files || files?.length <= 0) {
+        toast.error("No file selected");
+        return;
+      }
+
+      setProgress(10);
+
+      setProgress(20);
+      const url = await uploadFile(files[0].file);
+      if (!url) throw new Error("File upload failed. No URL returned.");
+      const fileSizeMB = (files[0].file.size / (1024 * 1024)).toFixed(2);
+
+      const res = await uploadNewDocumentVersion({
+        id: doc.id,
+        newVersionNumber: doc.currentVersion + 1,
+        url: url,
+        fileSize: fileSizeMB,
+        mimeType: files[0].file.type,
+        pathname,
+      });
+      if (res.success) {
+        toast.success("New file version uploaded succesfully");
+        router.refresh();
+      } else {
+        toast.error(res.error?.reason);
+      }
+    } catch (_error) {
+      toast.error("Upload failed. Try again!");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="flex gap-3 hover:cursor-pointer"
+        >
+          <Eye size={16} />
+          Open
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="min-w-3xl 2xl:min-w-4xl">
+        <SheetHeader className="space-y-6">
+          <div className="flex flex-row gap-3">
+            <div className="bg-muted p-4 rounded-xl">
+              <FileIcon size={40} />
+            </div>
+            <div>
+              <SheetTitle>
+                {doc.title.charAt(0).toUpperCase() + doc.title.slice(1)}
+              </SheetTitle>
+              <SheetDescription>
+                {doc.description ?? "No description available"}
+              </SheetDescription>
+              <div className="text-muted-foreground text-sm">
+                {doc.fileSize} MB • Modified{" "}
+                {doc.updatedAt.toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <ButtonGroup>
+              <ButtonGroup>
+                <Link
+                  target="_blank"
+                  href={doc.filePath ?? ""}
+                  className="hover:cursor-pointer"
+                >
+                  <Button variant="outline">
+                    <Eye />
+                    Open
+                  </Button>
+                </Link>
+              </ButtonGroup>
+              <ButtonGroup>
+                <Button
+                  onClick={() => {
+                    const url = doc.filePath ?? "";
+                    if (!url) return;
+                    try {
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    } catch {
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                >
+                  <Download />
+                  Download
+                </Button>
+              </ButtonGroup>
+              <ButtonGroup>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Share />
+                      Share
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Share document</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="user@example.com"
+                          value={shareEmail}
+                          onChange={(e) => setShareEmail(e.target.value)}
+                        />
+                        <select
+                          className="border rounded px-2 text-sm"
+                          value={shareLevel}
+                          onChange={(e) =>
+                            setShareLevel(
+                              e.target.value as "view" | "edit" | "manage",
+                            )
+                          }
+                        >
+                          <option value="view">View</option>
+                          <option value="edit">Edit</option>
+                          <option value="manage">Manage</option>
+                        </select>
+                        <Button onClick={handleShareAdd}>Add</Button>
+                      </div>
+
+                      {shareSuggestionsLoading && (
+                        <div className="text-xs text-muted-foreground">
+                          Searching…
+                        </div>
+                      )}
+                      {shareSuggestions.length > 0 && (
+                        <div className="border rounded p-2 max-h-40 overflow-y-auto">
+                          {shareSuggestions.map((s: any) => (
+                            <div
+                              key={s.id}
+                              className="flex items-center justify-between py-1 hover:bg-muted/50 px-2 rounded cursor-pointer"
+                              onClick={() => setShareEmail(s.email)}
+                            >
+                              <div className="text-sm">
+                                {s.name} •{" "}
+                                <span className="text-muted-foreground">
+                                  {s.email}
+                                </span>
+                              </div>
+                              <Badge variant="outline">{s.department}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">
+                          Current shares
+                        </div>
+                        {sharesLoading ? (
+                          <div className="text-xs text-muted-foreground">
+                            Loading shares…
+                          </div>
+                        ) : shares.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            No shares yet.
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {shares.map((u: any) => (
+                              <div
+                                key={u.userId}
+                                className="flex items-center justify-between border rounded p-2"
+                              >
+                                <div className="text-sm">
+                                  {u.name ?? "User"} •{" "}
+                                  <span className="text-muted-foreground">
+                                    {u.email}
+                                  </span>{" "}
+                                  • {u.accessLevel}
+                                </div>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleShareRemove(u.userId)}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-1" />
+                                  Remove
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </ButtonGroup>
+              <ButtonGroup>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Edit />
+                      New Version
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle></DialogTitle>
+                    </DialogHeader>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        onSubmit();
+                      }}
+                      className="space-y-6"
+                    >
+                      <Dropzone
+                        provider="cloudflare-r2"
+                        variant="compact"
+                        maxFiles={10}
+                        maxSize={1024 * 1024 * 50} // 50MB
+                        onFilesChange={(files) => setFiles(files)}
+                      />
+                      <Button type="submit" disabled={isUploading}>
+                        {isUploading && <Spinner />}
+                        {!isUploading ? "Submit" : "Uploading..."}
+                      </Button>
+                      {isUploading && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {progress < 100
+                                ? "Uploading document.pdf..."
+                                : "Upload complete!"}
+                            </span>
+                            <span className="font-medium">{progress}%</span>
+                          </div>
+                          <Progress value={progress} className="w-full" />
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            {progress > 100 && (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="px-2 bg-transparent">
+                      <MoreVertical size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="space-y-1">
+                    <DropdownMenuItem className="hover:cursor-pointer " asChild>
+                      <DocumentsActions
+                        type="archive"
+                        id={doc.id}
+                        pathname={pathname}
+                      />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-600 hover:cursor-pointer"
+                      asChild
+                    >
+                      <DocumentsActions
+                        type="delete"
+                        id={doc.id}
+                        pathname={pathname}
+                      />
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ButtonGroup>
+            </ButtonGroup>
+          </div>
+        </SheetHeader>
+
+        <Separator />
+
+        <div className="flex px-4 overflow-y-auto w-full flex-col gap-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="comment">Comments</TabsTrigger>
+              <TabsTrigger value="versions">Versions</TabsTrigger>
+              <TabsTrigger value="permissions">Permissions</TabsTrigger>
+              {(myAccess?.isOwner || myAccess?.level === "manage") && (
+                <TabsTrigger value="history">History</TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="overview">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Document Information</CardTitle>
+                </CardHeader>
+                <CardContent className="">
+                  <div className="grid grid-cols-2">
+                    <div className=" flex flex-col gap-2">
+                      <div className="flex gap-3 ">
+                        <div className="flex text-muted-foreground justify-center items-center">
+                          <Calendar size={18} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span>Created</span>
+                          <span className="text-sm text-muted-foreground">
+                            {doc.createdAt.toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 ">
+                        <div className="flex text-muted-foreground justify-center items-center">
+                          <Clock size={18} />
+                        </div>
+                        <div className="flex flex-col ">
+                          <span>Last Modified</span>
+                          <span className="text-sm text-muted-foreground">
+                            {doc.updatedAt.toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 ">
+                        <div className="flex text-muted-foreground justify-center items-center">
+                          <User size={18} />
+                        </div>
+                        <div className="flex flex-col ">
+                          <span>Owner</span>
+                          <span className="text-sm text-muted-foreground">
+                            {doc.uploader}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 ">
+                        <div className="flex text-muted-foreground justify-center items-center">
+                          <Settings size={18} />
+                        </div>
+                        <div className="flex flex-col ">
+                          <span>Version</span>
+                          <span className="text-sm text-muted-foreground">
+                            V{doc.currentVersion}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 ">
+                        <div className="flex text-muted-foreground justify-center items-center">
+                          <ImagePlay size={18} />
+                        </div>
+                        <div className="flex flex-col ">
+                          <span>Document Type</span>
+                          <span className="text-sm text-muted-foreground">
+                            {doc.mimeType}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className=" flex flex-col gap-4">
+                      <div>
+                        <div>Tags</div>
+                        <div className="flex gap-3">
+                          {doc.tags.map((tag, idx) => (
+                            <div
+                              key={idx}
+                              className="rounded-full bg-teal-200 text-xs p-1 px-3"
+                            >
+                              {tag}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="comment">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Comments</CardTitle>
+                  <CardDescription>
+                    comments relating to this document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                  {(myAccess?.isOwner ||
+                    myAccess?.level === "edit" ||
+                    myAccess?.level === "manage") && (
+                    <div className="space-y-2">
+                      <Label htmlFor={`comment-${doc.id}`}>Add a comment</Label>
+                      <Textarea
+                        id={`comment-${doc.id}`}
+                        placeholder="Write your comment..."
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        rows={3}
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleAddComment}
+                          disabled={!commentText.trim()}
+                        >
+                          Post comment
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    {commentsLoading ? (
+                      <div className="text-sm text-muted-foreground">
+                        Loading comments...
+                      </div>
+                    ) : comments.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">
+                        No comments yet.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {comments.map((c, idx) => (
+                          <div key={idx} className="p-3 rounded-md border">
+                            <div className="flex items-center justify-between">
+                              <div className="font-medium">
+                                {c.userName ?? "User"}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(c.createdAt).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="text-sm mt-2">{c.comment}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="versions">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Versions</CardTitle>
+                  <CardDescription>All past versions</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                  {versionsLoading ? (
+                    <div className="text-sm text-muted-foreground">
+                      Loading versions...
+                    </div>
+                  ) : versions.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      No previous versions.
+                    </div>
+                  ) : (
+                    versions.map((v) => {
+                      const isCurrent = v.versionNumber === doc.currentVersion;
+                      return (
+                        <div
+                          key={v.id}
+                          className="flex items-center justify-between border rounded-md p-3"
+                        >
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                v{v.versionNumber}
+                              </span>
+                              {isCurrent && (
+                                <Badge variant="secondary">Current</Badge>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(v.createdAt).toLocaleString()} •{" "}
+                              {v.fileSize} MB • {v.mimeType}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Uploaded by {v.uploadedByName ?? "User"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const url = v.filePath ?? "";
+                                if (!url) return;
+                                try {
+                                  const a = document.createElement("a");
+                                  a.href = url;
+                                  a.download = `${doc.title}-v${v.versionNumber}`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                } catch {
+                                  window.open(
+                                    url,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  );
+                                }
+                              }}
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Download
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              disabled={isCurrent}
+                              onClick={async () => {
+                                const res = await deleteDocumentVersion(
+                                  v.id,
+                                  pathname,
+                                );
+                                if (res?.success) {
+                                  toast.success(res.success.reason);
+                                  await loadVersions();
+                                  router.refresh();
+                                } else {
+                                  toast.error(
+                                    res?.error?.reason ??
+                                      "Failed to delete version",
+                                  );
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="permissions">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Permissions</CardTitle>
+                  <CardDescription>
+                    View and manage document access
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                  {!myAccess ? (
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        Load your permissions to manage access
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          await loadMyAccess();
+                          await loadShares();
+                        }}
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                  ) : myAccess.isOwner || myAccess.isAdminDepartment ? (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="border rounded-md p-3">
+                          <div className="text-sm font-medium mb-1">
+                            Uploader
+                          </div>
+                          <div className="text-sm">
+                            {doc.uploader} •{" "}
+                            <Badge variant="secondary">Manage</Badge>
+                          </div>
+                        </div>
+
+                        <div className="border rounded-md p-3">
+                          <div className="text-sm font-medium mb-1">
+                            Public access
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-muted-foreground">
+                              {publicValue
+                                ? "Document is public"
+                                : "Not public"}
+                            </div>
+                            <Button
+                              variant="outline"
+                              disabled={pubUpdating}
+                              onClick={async () => {
+                                try {
+                                  setPubUpdating(true);
+                                  const next = !publicValue;
+                                  const res = await updateDocumentPublic(
+                                    doc.id,
+                                    next,
+                                    pathname,
+                                  );
+                                  if (res?.success) {
+                                    setPublicValue(next);
+                                    toast.success(res.success.reason);
+                                    router.refresh();
+                                  } else {
+                                    toast.error(
+                                      res?.error?.reason ??
+                                        "Failed to update public",
+                                    );
+                                  }
+                                } finally {
+                                  setPubUpdating(false);
+                                }
+                              }}
+                            >
+                              {pubUpdating
+                                ? "Updating..."
+                                : publicValue
+                                  ? "Make Private"
+                                  : "Make Public"}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="border rounded-md p-3 md:col-span-2">
+                          <div className="text-sm font-medium mb-1">
+                            Department access
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm text-muted-foreground">
+                                {deptEnabled
+                                  ? `Enabled for ${doc.department} department`
+                                  : "Not departmental"}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="border rounded px-2 text-sm"
+                                  disabled={!deptEnabled}
+                                  value={deptLevel}
+                                  onChange={(e) =>
+                                    setDeptLevel(
+                                      e.target.value as
+                                        | "view"
+                                        | "edit"
+                                        | "manage",
+                                    )
+                                  }
+                                >
+                                  <option value="view">View</option>
+                                  <option value="edit">Edit</option>
+                                  <option value="manage">Manage</option>
+                                </select>
+                                <Button
+                                  variant="outline"
+                                  disabled={deptUpdating}
+                                  onClick={async () => {
+                                    try {
+                                      setDeptUpdating(true);
+                                      const res = await updateDepartmentAccess(
+                                        doc.id,
+                                        deptEnabled,
+                                        deptEnabled ? deptLevel : undefined,
+                                        pathname,
+                                      );
+                                      if (res?.success) {
+                                        toast.success(res.success.reason);
+                                        router.refresh();
+                                      } else {
+                                        toast.error(
+                                          res?.error?.reason ??
+                                            "Failed to update departmental access",
+                                        );
+                                      }
+                                    } finally {
+                                      setDeptUpdating(false);
+                                    }
+                                  }}
+                                >
+                                  {deptUpdating ? "Updating..." : "Save"}
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-muted-foreground">
+                                Toggle departmental access for your department
+                                and set an access level.
+                              </div>
+                              <Button
+                                variant={deptEnabled ? "secondary" : "outline"}
+                                onClick={() => setDeptEnabled((v) => !v)}
+                              >
+                                {deptEnabled
+                                  ? "Disable departmental"
+                                  : "Enable departmental"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium">Add user</div>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="user@example.com"
+                            value={shareEmail}
+                            onChange={(e) => setShareEmail(e.target.value)}
+                          />
+                          <select
+                            className="border rounded px-2 text-sm"
+                            value={shareLevel}
+                            onChange={(e) =>
+                              setShareLevel(
+                                e.target.value as "view" | "edit" | "manage",
+                              )
+                            }
+                          >
+                            <option value="view">View</option>
+                            <option value="edit">Edit</option>
+                            <option value="manage">Manage</option>
+                          </select>
+                          <Button onClick={handleShareAdd}>Add</Button>
+                        </div>
+                        {shareSuggestionsLoading && (
+                          <div className="text-xs text-muted-foreground">
+                            Searching…
+                          </div>
+                        )}
+                        {shareSuggestions.length > 0 && (
+                          <div className="border rounded p-2 max-h-40 overflow-y-auto">
+                            {shareSuggestions.map((s: any) => (
+                              <div
+                                key={s.id}
+                                className="flex items-center justify-between py-1 hover:bg-muted/50 px-2 rounded cursor-pointer"
+                                onClick={() => setShareEmail(s.email)}
+                              >
+                                <div className="text-sm">
+                                  {s.name} •{" "}
+                                  <span className="text-muted-foreground">
+                                    {s.email}
+                                  </span>
+                                </div>
+                                <Badge variant="outline">{s.department}</Badge>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium">
+                            Current shares
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              await loadShares();
+                            }}
+                          >
+                            Refresh
+                          </Button>
+                        </div>
+                        {sharesLoading ? (
+                          <div className="text-xs text-muted-foreground">
+                            Loading shares…
+                          </div>
+                        ) : shares.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            No shares yet.
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {shares.map((u: any) => (
+                              <div
+                                key={u.userId}
+                                className="flex items-center justify-between border rounded p-2"
+                              >
+                                <div className="text-sm">
+                                  {u.name ?? "User"} •{" "}
+                                  <span className="text-muted-foreground">
+                                    {u.email}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    className="border rounded px-2 text-sm"
+                                    defaultValue={u.accessLevel}
+                                    onChange={async (e) => {
+                                      const lvl = e.target.value as
+                                        | "view"
+                                        | "edit"
+                                        | "manage";
+                                      const res = await addDocumentShare(
+                                        doc.id,
+                                        u.email,
+                                        lvl,
+                                      );
+                                      if (res.success) {
+                                        toast.success("Share updated");
+                                        await loadShares();
+                                      } else {
+                                        toast.error(
+                                          res.error?.reason ??
+                                            "Failed to update share",
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <option value="view">View</option>
+                                    <option value="edit">Edit</option>
+                                    <option value="manage">Manage</option>
+                                  </select>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleShareRemove(u.userId)}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-1" />
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        You don&apos;t have permission to manage permissions on
+                        this document
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          await loadMyAccess();
+                          await loadShares();
+                        }}
+                      >
+                        Check my access
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history">
+              <Card>
+                <CardHeader>
+                  <CardTitle>History</CardTitle>
+                  <CardDescription>
+                    history/logs for the document
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6">
+                  {logsLoading ? (
+                    <div className="text-sm text-muted-foreground">
+                      Loading history...
+                    </div>
+                  ) : logs.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      No history yet.
+                    </div>
+                  ) : (
+                    logs.map((l) => (
+                      <div
+                        key={l.id}
+                        className="flex items-center justify-between border rounded-md p-3"
+                      >
+                        <div>
+                          <div className="font-medium">{l.action}</div>
+                          <div className="text-sm">{l.details}</div>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          <div>{l.userName ?? "User"}</div>
+                          <div>{new Date(l.createdAt).toLocaleString()}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

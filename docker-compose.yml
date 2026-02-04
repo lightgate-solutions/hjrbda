@@ -1,0 +1,23 @@
+name: hjrbda
+
+services:
+  postgres:
+    image: postgres
+    container_name: hjrbda-postgres
+    environment:
+      POSTGRES_DB: hjrbda
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - hjrbda_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  hjrbda_postgres_data:
