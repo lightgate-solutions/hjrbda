@@ -23,7 +23,7 @@ export default function Icon() {
         color: "white",
       }}
     >
-      BM
+      HJ
     </div>,
     // ImageResponse options
     {

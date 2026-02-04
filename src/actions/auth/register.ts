@@ -3,6 +3,8 @@
 import { auth } from "@/lib/auth";
 import { APIError } from "better-auth/api";
 import type { RegisterSchema } from "@/components/auth/register-form";
+import { db } from "@/db";
+import { employees, user as userDB } from "@/db/schema";
 
 type ActionResult<T = unknown> = {
   success: { reason: string } | null;
@@ -16,14 +18,28 @@ export async function registerUser(
   const { email, password, name } = formData;
 
   try {
-    const { user } = await auth.api.signUpEmail({
-      body: {
-        email,
-        password,
-        name,
-        callbackURL: "/admin",
-        rememberMe: true,
-      },
+    const user = await db.transaction(async (tx) => {
+      const { user } = await auth.api.signUpEmail({
+        body: {
+          email,
+          password,
+          name,
+          callbackURL: "/admin",
+          rememberMe: true,
+        },
+      });
+
+      await tx.insert(employees).values({
+        name: name,
+        email: email,
+        role: "admin",
+        department: "admin",
+        authId: user.id,
+      });
+
+      await tx.update(userDB).set({ role: "admin" });
+
+      return user;
     });
 
     return {
