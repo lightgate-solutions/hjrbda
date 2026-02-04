@@ -35,6 +35,7 @@ export async function registerUser(
         role: "admin",
         department: "admin",
         authId: user.id,
+        isManager: true,
       });
 
       await tx.update(userDB).set({ role: "admin" });
