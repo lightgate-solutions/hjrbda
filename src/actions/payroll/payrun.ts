@@ -17,9 +17,7 @@ import {
   salaryAllowances,
   salaryDeductions,
 } from "@/db/schema/payroll";
-import { loanApplications, loanRepayments } from "@/db/schema/loans";
 import { revalidatePath } from "next/cache";
-import { not } from "drizzle-orm";
 
 type PayrunType = "salary" | "allowance";
 
@@ -86,12 +84,6 @@ export async function generatePayrun(
           amount: number;
           deductionId?: number;
           employeeDeductionId?: number;
-        }>;
-        loans: Array<{
-          loanApplicationId: number;
-          name: string;
-          amount: number;
-          remainingBalance: number;
         }>;
         grossPay: number;
         totalAllowances: number;
@@ -191,18 +183,12 @@ export async function generatePayrun(
         const detailRecords: Array<{
           payrunItemId: number;
           employeeId: number;
-          detailType:
-            | "base_salary"
-            | "allowance"
-            | "deduction"
-            | "tax"
-            | "loan";
+          detailType: "base_salary" | "allowance" | "deduction" | "tax";
           description: string;
           allowanceId?: number | null;
           deductionId?: number | null;
           employeeAllowanceId?: number | null;
           employeeDeductionId?: number | null;
-          loanApplicationId?: number | null;
           amount: string;
           originalAmount?: string | null;
           remainingAmount?: string | null;
@@ -254,20 +240,6 @@ export async function generatePayrun(
             deductionId: deduction.deductionId || null,
             employeeDeductionId: deduction.employeeDeductionId || null,
             amount: (-deduction.amount).toFixed(2),
-          });
-        }
-
-        // Loan deductions
-        for (const loan of empData.loans) {
-          detailRecords.push({
-            payrunItemId: payrunItem.id,
-            employeeId: empData.employeeId,
-            detailType: "loan",
-            description: loan.name,
-            loanApplicationId: loan.loanApplicationId,
-            amount: (-loan.amount).toFixed(2),
-            originalAmount: loan.amount.toFixed(2),
-            remainingAmount: (loan.remainingBalance - loan.amount).toFixed(2),
           });
         }
 
@@ -362,7 +334,7 @@ async function calculateSalaryPayrun(
         ),
       );
 
-    // Get employee-specific deductions (excluding loan-type deductions to avoid duplicates)
+    // Get employee-specific deductions
     const empDeductions = await tx
       .select({
         id: employeeDeductions.id,
@@ -376,22 +348,6 @@ async function calculateSalaryPayrun(
           eq(employeeDeductions.employeeId, emp.employeeId),
           eq(employeeDeductions.active, true),
           isNull(employeeDeductions.effectiveTo),
-          not(eq(employeeDeductions.type, "loan")),
-        ),
-      );
-
-    // Get active loan deductions
-    const activeLoans = await tx
-      .select({
-        id: loanApplications.id,
-        monthlyDeduction: loanApplications.monthlyDeduction,
-        remainingBalance: loanApplications.remainingBalance,
-      })
-      .from(loanApplications)
-      .where(
-        and(
-          eq(loanApplications.employeeId, emp.employeeId),
-          eq(loanApplications.status, "active"),
         ),
       );
 
@@ -436,14 +392,6 @@ async function calculateSalaryPayrun(
     }
     const calculatedDeductions = Array.from(deductionsMap.values());
 
-    // Calculate loans
-    const calculatedLoans = activeLoans.map((loan) => ({
-      loanApplicationId: loan.id,
-      name: "Loan Repayment",
-      amount: Number(loan.monthlyDeduction || 0),
-      remainingBalance: Number(loan.remainingBalance || 0),
-    }));
-
     const totalAllowances = calculatedAllowances.reduce(
       (sum, a) => sum + a.amount,
       0,
@@ -456,9 +404,8 @@ async function calculateSalaryPayrun(
       (sum, d) => sum + d.amount,
       0,
     );
-    const totalLoans = calculatedLoans.reduce((sum, l) => sum + l.amount, 0);
     const grossPay = baseSalaryNumber + totalAllowances;
-    const netPay = grossPay - totalTaxes - totalDeductions - totalLoans;
+    const netPay = grossPay - totalTaxes - totalDeductions;
 
     result.push({
       employeeId: emp.employeeId,
@@ -466,10 +413,9 @@ async function calculateSalaryPayrun(
       baseSalary: baseSalaryNumber,
       allowances: calculatedAllowances,
       deductions: calculatedDeductions,
-      loans: calculatedLoans,
       grossPay,
       totalAllowances,
-      totalDeductions: totalDeductions + totalLoans,
+      totalDeductions,
       totalTaxes,
       netPay,
     });
@@ -593,7 +539,6 @@ async function calculateAllowancePayrun(
         },
       ],
       deductions: [],
-      loans: [],
       grossPay: allowanceAmount,
       totalAllowances: allowanceAmount,
       totalDeductions: 0,
@@ -856,123 +801,6 @@ export async function completePayrun(id: number, pathname: string) {
         updatedAt: new Date(),
       })
       .where(eq(payrunItems.payrunId, id));
-
-    // Update loan repayments if this is a salary payrun
-    // Get all loan details from this payrun
-    const loanDetails = await db
-      .select({
-        loanApplicationId: payrunItemDetails.loanApplicationId,
-        amount: payrunItemDetails.amount,
-        payrunItemId: payrunItemDetails.payrunItemId,
-      })
-      .from(payrunItemDetails)
-      .innerJoin(
-        payrunItems,
-        eq(payrunItemDetails.payrunItemId, payrunItems.id),
-      )
-      .where(
-        and(
-          eq(payrunItems.payrunId, id),
-          eq(payrunItemDetails.detailType, "loan"),
-        ),
-      );
-
-    // Update loan balances
-    for (const loan of loanDetails) {
-      if (loan.loanApplicationId) {
-        const amount = Math.abs(Number(loan.amount));
-        await db
-          .update(loanApplications)
-          .set({
-            totalRepaid: sql`${loanApplications.totalRepaid} + ${amount}`,
-            remainingBalance: sql`${loanApplications.remainingBalance} - ${amount}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(loanApplications.id, loan.loanApplicationId));
-
-        // Get updated loan info including employee deduction ID
-        const updatedLoan = await db
-          .select({
-            remainingBalance: loanApplications.remainingBalance,
-            employeeDeductionId: loanApplications.employeeDeductionId,
-          })
-          .from(loanApplications)
-          .where(eq(loanApplications.id, loan.loanApplicationId))
-          .limit(1);
-
-        const newRemainingBalance = Number(
-          updatedLoan[0]?.remainingBalance || 0,
-        );
-
-        // Update the corresponding loan repayment schedule entry
-        // Find the next pending repayment for this loan and mark it as paid
-        const pendingRepayment = await db
-          .select({ id: loanRepayments.id })
-          .from(loanRepayments)
-          .where(
-            and(
-              eq(loanRepayments.loanApplicationId, loan.loanApplicationId),
-              eq(loanRepayments.status, "pending"),
-            ),
-          )
-          .orderBy(loanRepayments.installmentNumber)
-          .limit(1);
-
-        if (pendingRepayment.length > 0) {
-          await db
-            .update(loanRepayments)
-            .set({
-              status: "paid",
-              paidAmount: amount.toFixed(2),
-              paidAt: new Date(),
-              payrunId: id,
-              payrunItemId: loan.payrunItemId,
-              balanceAfter: newRemainingBalance.toFixed(2),
-              updatedAt: new Date(),
-            })
-            .where(eq(loanRepayments.id, pendingRepayment[0].id));
-        }
-
-        // Update employee deduction remaining amount
-        if (updatedLoan[0]?.employeeDeductionId) {
-          await db
-            .update(employeeDeductions)
-            .set({
-              remainingAmount: newRemainingBalance.toFixed(2),
-              updatedAt: new Date(),
-            })
-            .where(
-              eq(employeeDeductions.id, updatedLoan[0].employeeDeductionId),
-            );
-        }
-
-        // Check if loan is fully repaid
-        if (newRemainingBalance <= 0) {
-          await db
-            .update(loanApplications)
-            .set({
-              status: "completed",
-              completedAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .where(eq(loanApplications.id, loan.loanApplicationId));
-
-          // Deactivate the employee deduction
-          if (updatedLoan[0]?.employeeDeductionId) {
-            await db
-              .update(employeeDeductions)
-              .set({
-                active: false,
-                effectiveTo: new Date(),
-                updatedAt: new Date(),
-              })
-              .where(
-                eq(employeeDeductions.id, updatedLoan[0].employeeDeductionId),
-              );
-          }
-        }
-      }
-    }
 
     revalidatePath(pathname);
     revalidatePath("/finance/payruns");

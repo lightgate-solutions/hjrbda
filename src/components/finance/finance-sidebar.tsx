@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Receipt,
-  Wallet,
-  Landmark,
-  History,
-} from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -40,11 +34,6 @@ export function FinanceSidebar({ isCollapsed }: FinanceSidebarProps) {
       title: "Payruns",
       icon: Wallet,
       href: "/finance/payruns",
-    },
-    {
-      title: "Loans",
-      icon: Landmark,
-      href: "/finance/loans",
     },
     {
       title: "Balance History",

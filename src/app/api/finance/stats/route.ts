@@ -1,10 +1,6 @@
 import { db } from "@/db";
-import {
-  companyExpenses,
-  loanApplications,
-  balanceTransactions,
-} from "@/db/schema";
-import { sql, inArray, and, gte, lte, type SQL } from "drizzle-orm";
+import { companyExpenses, balanceTransactions } from "@/db/schema";
+import { sql, and, gte, lte, type SQL } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -38,12 +34,6 @@ export async function GET(request: NextRequest) {
       .select({ total: sql<string>`sum(${companyExpenses.amount})` })
       .from(companyExpenses)
       .where(expenseWhere);
-
-    // Active Loans Count (Global state - not filtered by date usually, but can be if needed. Keeping global for now as per plan)
-    const [loansResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(loanApplications)
-      .where(inArray(loanApplications.status, ["active", "disbursed"]));
 
     // Chart Data - Aggregate expenses and income by day
     // We'll use balanceTransactions for this as it tracks both
@@ -88,7 +78,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       totalExpenses: expensesResult?.total || "0",
-      activeLoans: loansResult?.count || 0,
       chartData: chartDataArray,
     });
   } catch (error) {

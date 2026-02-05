@@ -26,7 +26,6 @@ export const deductionTypeEnum = pgEnum("deduction_type", [
   "recurring",
   "one-time",
   "statutory",
-  "loan",
   "advance",
 ]);
 
@@ -60,7 +59,6 @@ export const payrollDetailTypeEnum = pgEnum("payroll_detail_type", [
   "commission",
   "reimbursement",
   "tax",
-  "loan",
   "advance",
 ]);
 
@@ -357,7 +355,6 @@ export const payrunItemDetails = pgTable(
       () => employeeDeductions.id,
       { onDelete: "set null" },
     ),
-    loanApplicationId: integer("loan_application_id"),
     amount: numeric("amount", { precision: 15, scale: 2 }).notNull(),
     originalAmount: numeric("original_amount", { precision: 15, scale: 2 }),
     remainingAmount: numeric("remaining_amount", { precision: 15, scale: 2 }),

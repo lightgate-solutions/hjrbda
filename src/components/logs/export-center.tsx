@@ -62,7 +62,7 @@ const exportCategories: ExportCategory[] = [
   {
     id: "hr",
     title: "Human Resources",
-    description: "Employee records, attendance, and HR data",
+    description: "Employee records and HR data",
     icon: <FileText className="h-5 w-5" />,
     items: [
       {
@@ -81,30 +81,6 @@ const exportCategories: ExportCategory[] = [
         id: "employee-documents",
         label: "Employee Documents",
         description: "Uploaded employee documents",
-        supportsDateFilter: true,
-      },
-      {
-        id: "attendance",
-        label: "Attendance Records",
-        description: "Daily attendance logs",
-        supportsDateFilter: true,
-      },
-      {
-        id: "leave-applications",
-        label: "Leave Applications",
-        description: "Leave requests and approvals",
-        supportsDateFilter: true,
-      },
-      {
-        id: "leave-balances",
-        label: "Leave Balances",
-        description: "Current leave balances",
-        supportsDateFilter: false,
-      },
-      {
-        id: "ask-hr",
-        label: "Ask HR Questions",
-        description: "Employee HR inquiries",
         supportsDateFilter: true,
       },
     ],
@@ -143,50 +119,6 @@ const exportCategories: ExportCategory[] = [
         id: "payrun-items",
         label: "Payrun Items",
         description: "Individual payrun entries per employee",
-        supportsDateFilter: true,
-      },
-    ],
-  },
-  {
-    id: "loans",
-    title: "Loans",
-    description: "Loan applications, types, and repayments",
-    icon: <FileText className="h-5 w-5" />,
-    items: [
-      {
-        id: "loan-types",
-        label: "Loan Types",
-        description: "Available loan type definitions",
-        supportsDateFilter: false,
-      },
-      {
-        id: "loans-all",
-        label: "All Loans",
-        description: "All loan applications",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loans-active",
-        label: "Active Loans",
-        description: "Currently active loans",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loans-unpaid",
-        label: "Unpaid Loans",
-        description: "Loans pending payment",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loans-settled",
-        label: "Settled Loans",
-        description: "Completed/settled loans",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loan-repayments",
-        label: "Loan Repayments",
-        description: "Repayment schedules and history",
         supportsDateFilter: true,
       },
     ],

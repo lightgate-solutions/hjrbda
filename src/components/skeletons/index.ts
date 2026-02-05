@@ -22,7 +22,6 @@ export { DocumentsOverviewSkeleton } from "./documents/documents-overview-skelet
 export { DocumentsFolderSkeleton } from "./documents/documents-folder-skeleton";
 export { ProjectsPageSkeleton } from "./projects/projects-page-skeleton";
 export { NewsGridSkeleton } from "./news/news-grid-skeleton";
-export { LeavesTableSkeleton } from "./hr/leaves-table-skeleton";
 export { FinanceTableSkeleton } from "./finance/finance-table-skeleton";
 export { PayrollTableSkeleton } from "./payroll/payroll-table-skeleton";
 

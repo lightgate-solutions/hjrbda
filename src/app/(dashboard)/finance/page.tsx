@@ -3,13 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { BalanceCard } from "@/components/finance/balance-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  ArrowDownLeft,
-  CreditCard,
-  Plus,
-  FileText,
-  Receipt,
-} from "lucide-react";
+import { ArrowDownLeft, Plus, FileText, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { DatePickerWithRange } from "@/components/finance/date-range-picker";
 import { FinanceChart } from "@/components/finance/finance-chart";
@@ -23,7 +17,6 @@ export default function FinancePage() {
   const router = useRouter();
   const [stats, setStats] = useState({
     totalExpenses: "0",
-    activeLoans: 0,
     chartData: [],
   });
   const [loading, setLoading] = useState(true);
@@ -44,7 +37,6 @@ export default function FinancePage() {
       if (data.error) throw new Error(data.error);
       setStats({
         totalExpenses: data.totalExpenses || "0",
-        activeLoans: data.activeLoans || 0,
         chartData: data.chartData || [],
       });
     } catch (error) {
@@ -74,7 +66,7 @@ export default function FinancePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <BalanceCard />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -93,25 +85,6 @@ export default function FinancePage() {
             )}
             <p className="text-xs text-muted-foreground">
               {date?.from ? "In selected period" : "Lifetime expenses"}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="h-8 w-16 animate-pulse rounded bg-muted" />
-            ) : (
-              <div className="text-2xl font-bold">{stats.activeLoans}</div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {stats.activeLoans === 0
-                ? "No active loans"
-                : `${stats.activeLoans} active loan${stats.activeLoans === 1 ? "" : "s"}`}
             </p>
           </CardContent>
         </Card>

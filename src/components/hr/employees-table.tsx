@@ -186,15 +186,6 @@ export default function EmployeesTable() {
                   Employee Account
                 </TabsTrigger>
 
-                {/**
-                <TabsTrigger
-                  value="attendance"
-                  className="border-b-border dark:data-[state=active]:bg-background data-[state=active]:border-border data-[state=active]:border-b-background h-full rounded-none rounded-t border border-transparent data-[state=active]:-mb-0.5 data-[state=active]:shadow-none dark:border-b-0 dark:data-[state=active]:-mb-0.5"
-                >
-                  Attendance
-                </TabsTrigger>
-                **/}
-
                 <TabsTrigger
                   value="history"
                   className="border-b-border dark:data-[state=active]:bg-background data-[state=active]:border-border data-[state=active]:border-b-background h-full rounded-none rounded-t border border-transparent data-[state=active]:-mb-0.5 data-[state=active]:shadow-none dark:border-b-0 dark:data-[state=active]:-mb-0.5"
@@ -226,10 +217,6 @@ export default function EmployeesTable() {
                   />
                 )}
               </TabsContent>
-
-              {/**
-              <TabsContent value="attendance">Attendance</TabsContent>
-                  **/}
 
               <TabsContent value="history">
                 {selectedEmployee && (

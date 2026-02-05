@@ -172,7 +172,7 @@ export async function getManagers() {
 
     return {
       success: null,
-      error: { reason: "Could not reject attendance. Try again!" },
+      error: { reason: "Could not fetch managers. Try again!" },
       data: null,
     };
   }

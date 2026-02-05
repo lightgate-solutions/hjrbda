@@ -3,14 +3,7 @@ import { db } from "@/db";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { createObjectCsvStringifier } from "csv-writer";
-import {
-  employees,
-  employeesDocuments,
-  attendance,
-  employeesBank,
-  leaveApplications,
-  leaveBalances,
-} from "@/db/schema/hr";
+import { employees, employeesDocuments, employeesBank } from "@/db/schema/hr";
 import {
   salaryStructure,
   allowances,
@@ -18,14 +11,12 @@ import {
   payrun,
   payrunItems,
 } from "@/db/schema/payroll";
-import { loanApplications, loanRepayments, loanTypes } from "@/db/schema/loans";
 import { tasks, taskSubmissions } from "@/db/schema/tasks";
 import { projects } from "@/db/schema/projects";
 import { document, documentLogs } from "@/db/schema/documents";
 import { newsArticles } from "@/db/schema/news";
 import { user, session } from "@/db/schema/auth";
 import { companyExpenses, balanceTransactions } from "@/db/schema/finance";
-import { askHrQuestions } from "@/db/schema/ask-hr";
 import { eq, and, gte, lte, inArray, desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
@@ -34,12 +25,6 @@ type ExportDataset =
   | "salary-structures"
   | "allowances"
   | "deductions"
-  | "loans-all"
-  | "loans-active"
-  | "loans-unpaid"
-  | "loans-settled"
-  | "loan-types"
-  | "loan-repayments"
   | "payruns"
   | "payrun-items"
   | "news"
@@ -57,12 +42,8 @@ type ExportDataset =
   | "users"
   | "documents"
   | "document-logs"
-  | "attendance"
-  | "leave-applications"
-  | "leave-balances"
   | "company-expenses"
   | "balance-transactions"
-  | "ask-hr"
   | "employee-banks"
   | "employee-documents";
 
@@ -293,178 +274,6 @@ async function fetchDataset(
           { id: "createdAt", title: "Created At" },
         ],
         filename: "deductions_export",
-      };
-    }
-
-    case "loans-all":
-    case "loans-active":
-    case "loans-unpaid":
-    case "loans-settled": {
-      const baseQuery = db
-        .select({
-          referenceNumber: loanApplications.referenceNumber,
-          employeeName: employees.name,
-          loanType: loanTypes.name,
-          requestedAmount: loanApplications.requestedAmount,
-          approvedAmount: loanApplications.approvedAmount,
-          monthlyDeduction: loanApplications.monthlyDeduction,
-          tenureMonths: loanApplications.tenureMonths,
-          status: loanApplications.status,
-          totalRepaid: loanApplications.totalRepaid,
-          remainingBalance: loanApplications.remainingBalance,
-          appliedAt: loanApplications.appliedAt,
-          disbursedAt: loanApplications.disbursedAt,
-          completedAt: loanApplications.completedAt,
-        })
-        .from(loanApplications)
-        .leftJoin(employees, eq(loanApplications.employeeId, employees.id))
-        .leftJoin(loanTypes, eq(loanApplications.loanTypeId, loanTypes.id));
-
-      const conditions = [];
-
-      if (dataset === "loans-active") {
-        conditions.push(eq(loanApplications.status, "active"));
-      } else if (dataset === "loans-unpaid") {
-        conditions.push(
-          inArray(loanApplications.status, [
-            "active",
-            "disbursed",
-            "hr_approved",
-          ]),
-        );
-      } else if (dataset === "loans-settled") {
-        conditions.push(eq(loanApplications.status, "completed"));
-      }
-
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(loanApplications.appliedAt, dateFilters.start));
-        conditions.push(lte(loanApplications.appliedAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(loanApplications.appliedAt));
-
-      return {
-        data: data.map((l) => ({
-          ...l,
-          requestedAmount: l.requestedAmount?.toString(),
-          approvedAmount: l.approvedAmount?.toString(),
-          monthlyDeduction: l.monthlyDeduction?.toString(),
-          totalRepaid: l.totalRepaid?.toString(),
-          remainingBalance: l.remainingBalance?.toString(),
-          appliedAt: l.appliedAt?.toISOString().split("T")[0],
-          disbursedAt: l.disbursedAt?.toISOString().split("T")[0],
-          completedAt: l.completedAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "referenceNumber", title: "Reference Number" },
-          { id: "employeeName", title: "Employee" },
-          { id: "loanType", title: "Loan Type" },
-          { id: "requestedAmount", title: "Requested Amount" },
-          { id: "approvedAmount", title: "Approved Amount" },
-          { id: "monthlyDeduction", title: "Monthly Deduction" },
-          { id: "tenureMonths", title: "Tenure (Months)" },
-          { id: "status", title: "Status" },
-          { id: "totalRepaid", title: "Total Repaid" },
-          { id: "remainingBalance", title: "Remaining Balance" },
-          { id: "appliedAt", title: "Applied At" },
-          { id: "disbursedAt", title: "Disbursed At" },
-          { id: "completedAt", title: "Completed At" },
-        ],
-        filename: `loans_${dataset.replace("loans-", "")}_export`,
-      };
-    }
-
-    case "loan-types": {
-      const data = await db
-        .select({
-          name: loanTypes.name,
-          description: loanTypes.description,
-          amountType: loanTypes.amountType,
-          fixedAmount: loanTypes.fixedAmount,
-          maxPercentage: loanTypes.maxPercentage,
-          tenureMonths: loanTypes.tenureMonths,
-          interestRate: loanTypes.interestRate,
-          minServiceMonths: loanTypes.minServiceMonths,
-          maxActiveLoans: loanTypes.maxActiveLoans,
-          isActive: loanTypes.isActive,
-          createdAt: loanTypes.createdAt,
-        })
-        .from(loanTypes)
-        .orderBy(desc(loanTypes.createdAt));
-
-      return {
-        data: data.map((lt) => ({
-          ...lt,
-          fixedAmount: lt.fixedAmount?.toString(),
-          isActive: lt.isActive ? "Yes" : "No",
-          createdAt: lt.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "name", title: "Name" },
-          { id: "description", title: "Description" },
-          { id: "amountType", title: "Amount Type" },
-          { id: "fixedAmount", title: "Fixed Amount" },
-          { id: "maxPercentage", title: "Max Percentage" },
-          { id: "tenureMonths", title: "Tenure (Months)" },
-          { id: "interestRate", title: "Interest Rate" },
-          { id: "minServiceMonths", title: "Min Service Months" },
-          { id: "maxActiveLoans", title: "Max Active Loans" },
-          { id: "isActive", title: "Is Active" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "loan_types_export",
-      };
-    }
-
-    case "loan-repayments": {
-      const baseQuery = db
-        .select({
-          employeeName: employees.name,
-          installmentNumber: loanRepayments.installmentNumber,
-          dueDate: loanRepayments.dueDate,
-          expectedAmount: loanRepayments.expectedAmount,
-          paidAmount: loanRepayments.paidAmount,
-          balanceAfter: loanRepayments.balanceAfter,
-          status: loanRepayments.status,
-          paidAt: loanRepayments.paidAt,
-        })
-        .from(loanRepayments)
-        .leftJoin(employees, eq(loanRepayments.employeeId, employees.id));
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(loanRepayments.dueDate, dateFilters.start));
-        conditions.push(lte(loanRepayments.dueDate, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(loanRepayments.dueDate));
-
-      return {
-        data: data.map((r) => ({
-          ...r,
-          expectedAmount: r.expectedAmount?.toString(),
-          paidAmount: r.paidAmount?.toString(),
-          balanceAfter: r.balanceAfter?.toString(),
-          dueDate: r.dueDate?.toISOString().split("T")[0],
-          paidAt: r.paidAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "employeeName", title: "Employee" },
-          { id: "installmentNumber", title: "Installment Number" },
-          { id: "dueDate", title: "Due Date" },
-          { id: "expectedAmount", title: "Expected Amount" },
-          { id: "paidAmount", title: "Paid Amount" },
-          { id: "balanceAfter", title: "Balance After" },
-          { id: "status", title: "Status" },
-          { id: "paidAt", title: "Paid At" },
-        ],
-        filename: "loan_repayments_export",
       };
     }
 
@@ -963,136 +772,6 @@ async function fetchDataset(
       };
     }
 
-    case "attendance": {
-      const baseQuery = db
-        .select({
-          employeeName: employees.name,
-          date: attendance.date,
-          time: attendance.signInTime,
-          signOutTime: attendance.signOutTime,
-          checkedIn: sql<boolean>`(${attendance.signInTime} IS NOT NULL)`.as(
-            "checkedIn",
-          ),
-          createdAt: attendance.createdAt,
-        })
-        .from(attendance)
-        .leftJoin(employees, eq(attendance.employeeId, employees.id));
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(
-          gte(attendance.date, dateFilters.start.toISOString().split("T")[0]),
-        );
-        conditions.push(
-          lte(attendance.date, dateFilters.end.toISOString().split("T")[0]),
-        );
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(attendance.date));
-
-      return {
-        data: data.map((a) => ({
-          ...a,
-          checkedIn: a.checkedIn ? "Yes" : "No",
-          createdAt: a.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "employeeName", title: "Employee" },
-          { id: "date", title: "Date" },
-          { id: "time", title: "Check In Time" },
-          { id: "signOutTime", title: "Sign Out Time" },
-          { id: "checkedIn", title: "Checked In" },
-          { id: "approvedByName", title: "Approved By" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "attendance_export",
-      };
-    }
-
-    case "leave-applications": {
-      const baseQuery = db
-        .select({
-          employeeName: employees.name,
-          leaveType: leaveApplications.leaveType,
-          startDate: leaveApplications.startDate,
-          endDate: leaveApplications.endDate,
-          totalDays: leaveApplications.totalDays,
-          reason: leaveApplications.reason,
-          status: leaveApplications.status,
-          approvedByName: approver.name,
-          appliedAt: leaveApplications.appliedAt,
-        })
-        .from(leaveApplications)
-        .leftJoin(employees, eq(leaveApplications.employeeId, employees.id))
-        .leftJoin(approver, eq(leaveApplications.approvedBy, approver.id));
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(leaveApplications.appliedAt, dateFilters.start));
-        conditions.push(lte(leaveApplications.appliedAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(leaveApplications.appliedAt));
-
-      return {
-        data: data.map((la) => ({
-          ...la,
-          appliedAt: la.appliedAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "employeeName", title: "Employee" },
-          { id: "leaveType", title: "Leave Type" },
-          { id: "startDate", title: "Start Date" },
-          { id: "endDate", title: "End Date" },
-          { id: "totalDays", title: "Total Days" },
-          { id: "reason", title: "Reason" },
-          { id: "status", title: "Status" },
-          { id: "approvedByName", title: "Approved By" },
-          { id: "appliedAt", title: "Applied At" },
-        ],
-        filename: "leave_applications_export",
-      };
-    }
-
-    case "leave-balances": {
-      const data = await db
-        .select({
-          employeeName: employees.name,
-          leaveType: leaveBalances.leaveType,
-          totalDays: leaveBalances.totalDays,
-          usedDays: leaveBalances.usedDays,
-          remainingDays: leaveBalances.remainingDays,
-          year: leaveBalances.year,
-          createdAt: leaveBalances.createdAt,
-        })
-        .from(leaveBalances)
-        .leftJoin(employees, eq(leaveBalances.employeeId, employees.id))
-        .orderBy(desc(leaveBalances.createdAt));
-
-      return {
-        data: data.map((lb) => ({
-          ...lb,
-          createdAt: lb.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "employeeName", title: "Employee" },
-          { id: "leaveType", title: "Leave Type" },
-          { id: "totalDays", title: "Total Days" },
-          { id: "usedDays", title: "Used Days" },
-          { id: "remainingDays", title: "Remaining Days" },
-          { id: "year", title: "Year" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "leave_balances_export",
-      };
-    }
-
     case "company-expenses": {
       const baseQuery = db
         .select({
@@ -1182,54 +861,6 @@ async function fetchDataset(
           { id: "createdAt", title: "Created At" },
         ],
         filename: "balance_transactions_export",
-      };
-    }
-
-    case "ask-hr": {
-      const baseQuery = db
-        .select({
-          employeeName: employees.name,
-          title: askHrQuestions.title,
-          question: askHrQuestions.question,
-          category: askHrQuestions.category,
-          status: askHrQuestions.status,
-          isAnonymous: askHrQuestions.isAnonymous,
-          isPublic: askHrQuestions.isPublic,
-          createdAt: askHrQuestions.createdAt,
-        })
-        .from(askHrQuestions)
-        .leftJoin(employees, eq(askHrQuestions.employeeId, employees.id));
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(askHrQuestions.createdAt, dateFilters.start));
-        conditions.push(lte(askHrQuestions.createdAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(askHrQuestions.createdAt));
-
-      return {
-        data: data.map((q) => ({
-          ...q,
-          employeeName: q.isAnonymous ? "Anonymous" : q.employeeName,
-          isAnonymous: q.isAnonymous ? "Yes" : "No",
-          isPublic: q.isPublic ? "Yes" : "No",
-          createdAt: q.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "employeeName", title: "Employee" },
-          { id: "title", title: "Title" },
-          { id: "question", title: "Question" },
-          { id: "category", title: "Category" },
-          { id: "status", title: "Status" },
-          { id: "isAnonymous", title: "Is Anonymous" },
-          { id: "isPublic", title: "Is Public" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "ask_hr_questions_export",
       };
     }
 
