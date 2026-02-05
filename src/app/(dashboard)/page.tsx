@@ -1,12 +1,10 @@
 import { getUser } from "@/actions/auth/dal";
-import { getUserPreferences } from "@/actions/user-preferences/preferences";
 import AdminDashboard from "@/components/dashboard/AdminDashboard";
 import HrDashboard from "@/components/dashboard/HrDashboard";
 import FinanceDashboard from "@/components/dashboard/FinanceDashboard";
 import StaffDashboard from "@/components/dashboard/StaffDashboard";
 import ManagerDashboard from "@/components/dashboard/ManagerDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const user = await getUser();
@@ -26,41 +24,6 @@ export default async function DashboardPage() {
         </Card>
       </div>
     );
-  }
-
-  // Check user preferences for defaultView (gracefully handle if table doesn't exist)
-  let defaultView = "dashboard";
-  try {
-    const preferences = await getUserPreferences();
-    defaultView = preferences?.defaultView || "dashboard";
-  } catch {
-    // If preferences can't be loaded, default to dashboard view
-  }
-
-  // If user has set a defaultView preference and it's not "dashboard", redirect them
-  if (defaultView && defaultView !== "dashboard") {
-    switch (defaultView) {
-      case "documents":
-        redirect("/documents");
-        break;
-      case "tasks":
-        // Redirect to appropriate tasks page based on role
-        if (user.isManager) {
-          redirect("/tasks");
-        } else {
-          redirect("/tasks/employee");
-        }
-        break;
-      case "projects":
-        redirect("/projects");
-        break;
-      case "mail":
-        redirect("/mail/inbox");
-        break;
-      default:
-        // If invalid defaultView, continue to show dashboard
-        break;
-    }
   }
 
   // Normalize role to lowercase and trim for comparison

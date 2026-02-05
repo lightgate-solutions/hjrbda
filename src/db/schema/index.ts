@@ -9,6 +9,5 @@ export * from "./payments";
 export * from "./tasks";
 export * from "./finance";
 export * from "./payroll";
-export * from "./user-preferences";
 export * from "./news";
 export * from "./bug-reports";
