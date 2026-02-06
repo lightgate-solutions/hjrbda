@@ -10,7 +10,7 @@ export default async function FoldersActions({
   department: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="flex items-center gap-2">
       <Dialog>
         <UploadDocumentButton
           usersFolders={usersFolders}

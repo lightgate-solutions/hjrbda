@@ -67,14 +67,6 @@ const data = {
           title: "Search",
           url: "/documents/search",
         },
-        {
-          title: "All Documents",
-          url: "/documents/all",
-        },
-        {
-          title: "Archive",
-          url: "/documents/archive",
-        },
       ],
     },
     {

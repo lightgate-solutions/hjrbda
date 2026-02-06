@@ -1,8 +1,7 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
 "use client";
 
-import { Archive, Folder, LogIn, MoreVertical, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Archive, FolderOpen, MoreVertical, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -50,128 +49,125 @@ export default function FoldersTable({
   const router = useRouter();
 
   return (
-    <div className="border rounded-lg">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-12"></TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Last Modified</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+          <TableRow className="hover:bg-transparent border-b border-border">
+            <TableHead className="w-10 pl-4" />
+            <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Name
+            </TableHead>
+            <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Modified
+            </TableHead>
+            <TableHead className="text-right pr-4 w-16" />
           </TableRow>
         </TableHeader>
         <TableBody>
+          {/* All Documents Row */}
           <TableRow
-            className="hover:bg-muted/50 cursor-pointer"
+            className="cursor-pointer transition-colors hover:bg-muted/40"
             onClick={() => router.push("/documents/all")}
           >
-            <TableCell>
-              <Folder size={24} className="text-slate-600" />
-            </TableCell>
-            <TableCell className="font-medium">All Documents</TableCell>
-            <TableCell className="text-muted-foreground">This week</TableCell>
-            <TableCell
-              className="text-right"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/documents/all">
-                    <LogIn size={16} className="mr-1" />
-                    Enter
-                  </Link>
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="px-2">
-                      <MoreVertical size={16} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem disabled>
-                      <Archive size={16} className="mr-2" />
-                      Archive
-                    </DropdownMenuItem>
-                    <DropdownMenuItem disabled className="text-red-600">
-                      <Trash2 size={16} className="mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            <TableCell className="pl-4">
+              <div className="rounded-md bg-primary/8 p-1.5 w-fit">
+                <FolderOpen
+                  size={16}
+                  className="text-primary"
+                  aria-hidden="true"
+                />
               </div>
             </TableCell>
+            <TableCell>
+              <Link
+                href="/documents/all"
+                className="text-sm font-medium text-foreground hover:underline"
+                aria-label="Open All Documents"
+              >
+                All Documents
+              </Link>
+            </TableCell>
+            <TableCell className="text-sm text-muted-foreground">--</TableCell>
+            <TableCell className="text-right pr-4" />
           </TableRow>
+
+          {/* User Folders */}
           {folders.map((folder, idx) => {
             const folderUrl =
               pathname === "/documents"
                 ? `${pathname}/f/${folder.id}`
                 : `${pathname}/${folder.id}`;
+            const displayName = folder.path ?? folder.name;
+            const isProtected =
+              folder.name === department || folder.name === "personal";
 
             return (
               <TableRow
                 key={idx}
-                className="hover:bg-muted/50 cursor-pointer"
+                className="cursor-pointer transition-colors hover:bg-muted/40"
                 onClick={() => router.push(folderUrl)}
               >
+                <TableCell className="pl-4">
+                  <div className="rounded-md bg-primary/8 p-1.5 w-fit">
+                    <FolderOpen
+                      size={16}
+                      className="text-primary"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </TableCell>
                 <TableCell>
-                  <Folder size={24} className="text-slate-600" />
+                  <Link
+                    href={folderUrl}
+                    className="text-sm font-medium text-foreground hover:underline capitalize"
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Open ${displayName} folder`}
+                  >
+                    {displayName}
+                  </Link>
                 </TableCell>
-                <TableCell className="font-medium">
-                  {(folder.path ?? folder.name).charAt(0).toUpperCase() +
-                    (folder.path ?? folder.name).slice(1).toUpperCase()}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-sm text-muted-foreground">
                   {folder.updatedAt.toLocaleDateString()}
                 </TableCell>
                 <TableCell
-                  className="text-right"
+                  className="text-right pr-4"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={folderUrl}>
-                        <LogIn size={16} className="mr-1" />
-                        Enter
-                      </Link>
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="px-2">
-                          <MoreVertical size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="space-y-1">
-                        <DropdownMenuItem
-                          disabled={
-                            folder.name === department ||
-                            folder.name === "personal"
-                          }
-                          className="hover:cursor-pointer"
-                          asChild
-                        >
-                          <FoldersAction
-                            type="archive"
-                            id={folder.id}
-                            pathname={pathname}
-                          />
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={
-                            folder.name === department ||
-                            folder.name === "personal"
-                          }
-                          className="text-red-600 hover:cursor-pointer"
-                          asChild
-                        >
-                          <FoldersAction
-                            type="delete"
-                            id={folder.id}
-                            pathname={pathname}
-                          />
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label={`Actions for ${displayName}`}
+                      >
+                        <MoreVertical size={15} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem
+                        disabled={isProtected}
+                        className="cursor-pointer"
+                        asChild
+                      >
+                        <FoldersAction
+                          type="archive"
+                          id={folder.id}
+                          pathname={pathname}
+                        />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={isProtected}
+                        className="text-destructive focus:text-destructive cursor-pointer"
+                        asChild
+                      >
+                        <FoldersAction
+                          type="delete"
+                          id={folder.id}
+                          pathname={pathname}
+                        />
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );
@@ -195,37 +191,33 @@ function FoldersAction({
     <AlertDialog>
       <AlertDialogTrigger asChild>
         {type === "delete" ? (
-          <Button
-            className="flex w-full gap-3 hover:cursor-pointer"
-            variant="secondary"
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-2 py-1.5 text-sm cursor-pointer"
           >
-            <Trash2 className="mr-2" size={16} />
+            <Trash2 size={15} aria-hidden="true" />
             Delete
-          </Button>
+          </button>
         ) : (
-          <Button
-            variant="outline"
-            className="flex w-full gap-3 hover:cursor-pointer"
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-2 py-1.5 text-sm cursor-pointer"
           >
-            <Archive className="mr-2" size={16} />
+            <Archive size={15} aria-hidden="true" />
             Archive
-          </Button>
+          </button>
         )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-          {type === "delete" ? (
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              folder and remove all its data from our servers.
-            </AlertDialogDescription>
-          ) : (
-            <AlertDialogDescription>
-              This action cannot be undone. This will archive the folder and
-              move all its content to the archive page.
-            </AlertDialogDescription>
-          )}
+          <AlertDialogTitle>
+            {type === "delete" ? "Delete folder?" : "Archive folder?"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {type === "delete"
+              ? "This will permanently delete the folder and all its contents. This action cannot be undone."
+              : "This will archive the folder and move all its content to the archive. You can restore it later."}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -236,11 +228,12 @@ function FoldersAction({
                 if (res.error) {
                   toast.error(res.error.reason);
                 } else {
-                  toast.error(res.success.reason);
+                  toast.success(res.success.reason);
                 }
               }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Continue
+              Delete
             </AlertDialogAction>
           ) : (
             <AlertDialogAction
@@ -249,11 +242,11 @@ function FoldersAction({
                 if (res.error) {
                   toast.error(res.error.reason);
                 } else {
-                  toast.error(res.success.reason);
+                  toast.success(res.success.reason);
                 }
               }}
             >
-              Continue
+              Archive
             </AlertDialogAction>
           )}
         </AlertDialogFooter>

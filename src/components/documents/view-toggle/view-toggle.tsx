@@ -1,9 +1,7 @@
 "use client";
 
-import { LayoutGrid, Table } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { LayoutGrid, List } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ButtonGroup } from "@/components/ui/button-group";
 
 export type ViewType = "card" | "table";
 
@@ -21,25 +19,35 @@ export function ViewToggle() {
   };
 
   return (
-    <ButtonGroup>
-      <Button
-        variant={currentView === "card" ? "secondary" : "ghost"}
-        size="sm"
-        onClick={() => setView("card")}
-        className="h-8 px-3"
-      >
-        <LayoutGrid size={16} className="mr-1" />
-        Card
-      </Button>
-      <Button
-        variant={currentView === "table" ? "secondary" : "ghost"}
-        size="sm"
+    <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+      <button
+        type="button"
         onClick={() => setView("table")}
-        className="h-8 px-3"
+        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+          currentView === "table"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+        aria-label="Switch to table view"
+        aria-pressed={currentView === "table"}
       >
-        <Table size={16} className="mr-1" />
-        Table
-      </Button>
-    </ButtonGroup>
+        <List size={15} aria-hidden="true" />
+        <span className="hidden sm:inline">List</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setView("card")}
+        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+          currentView === "card"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+        aria-label="Switch to grid view"
+        aria-pressed={currentView === "card"}
+      >
+        <LayoutGrid size={15} aria-hidden="true" />
+        <span className="hidden sm:inline">Grid</span>
+      </button>
+    </div>
   );
 }

@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Search } from "lucide-react";
+import { Eye, FileText, Search } from "lucide-react";
 import Link from "next/link";
 
 interface SearchResultType {
@@ -27,91 +27,135 @@ interface SearchResultType {
   };
 }
 
-export function SearchResults({ results }: { results: SearchResultType[] }) {
-  return (
-    <div>
-      {results.length < 1 ? (
-        <div className="flex flex-col items-center justify-center py-4 px-4">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full" />
-            <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 p-8 rounded-full">
-              <Search className="h-16 w-16 text-primary" strokeWidth={1.5} />
-            </div>
-          </div>
-          <h2 className="text-2xl font-semibold mb-2 text-balance text-center">
-            Start Your Search
-          </h2>
-          <p className="text-muted-foreground text-center max-w-md mb-6 text-balance">
-            Enter keywords, document title, or tags to find what you're looking
-            for across all documents
-          </p>
+export function SearchResults({
+  results,
+  hasSearched = false,
+}: {
+  results: SearchResultType[];
+  hasSearched?: boolean;
+}) {
+  if (!hasSearched) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="rounded-full bg-muted p-5 mb-5">
+          <Search
+            size={28}
+            className="text-muted-foreground"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
         </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              About {results.length} results
-            </p>
-          </div>
+        <h2 className="text-lg font-medium text-foreground mb-1">
+          Start your search
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Enter keywords, document title, or tags to find documents across your
+          organization
+        </p>
+      </div>
+    );
+  }
 
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead className="">Department</TableHead>
-                  <TableHead className="text-right"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {results.map((result, idx) => (
-                  <TableRow
-                    key={idx}
-                    className="cursor-pointer hover:bg-muted/50"
-                  >
-                    <TableCell className="font-black">
-                      {result.content.title}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-md truncate">
-                      {result.content.description
-                        ? result.content.description
-                        : "No description"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 flex-wrap">
-                        {result.content.tags.map((tag, idx) => (
-                          <Badge
-                            key={idx}
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {tag.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="capitalize">
-                      {result.metadata.department}
-                    </TableCell>
-                    <TableCell className="text-right capitalize">
-                      <Link
-                        href={`/documents/${Number(result.metadata.documentId)}`}
-                      >
-                        <Button variant="link" className="hover:cursor-pointer">
-                          <Eye size={16} />
-                          Open
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+  if (results.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="rounded-full bg-muted p-5 mb-5">
+          <FileText
+            size={28}
+            className="text-muted-foreground"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          />
         </div>
-      )}
+        <h2 className="text-lg font-medium text-foreground mb-1">
+          No results found
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Try adjusting your search terms or check for typos
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        {results.length} result{results.length !== 1 ? "s" : ""} found
+      </p>
+
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent border-b border-border">
+              <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Title
+              </TableHead>
+              <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">
+                Description
+              </TableHead>
+              <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
+                Tags
+              </TableHead>
+              <TableHead className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden sm:table-cell">
+                Department
+              </TableHead>
+              <TableHead className="text-right w-16" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {results.map((result, idx) => (
+              <TableRow
+                key={idx}
+                className="cursor-pointer transition-colors hover:bg-muted/40"
+              >
+                <TableCell>
+                  <span className="text-sm font-medium">
+                    {result.content.title}
+                  </span>
+                </TableCell>
+                <TableCell className="hidden md:table-cell max-w-xs">
+                  <span className="text-sm text-muted-foreground truncate block">
+                    {result.content.description || "No description"}
+                  </span>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  <div className="flex gap-1 flex-wrap">
+                    {result.content.tags.map((tag, tagIdx) => (
+                      <Badge
+                        key={tagIdx}
+                        variant="secondary"
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {tag.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <span className="text-sm text-muted-foreground capitalize">
+                    {result.metadata.department}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link
+                    href={`/documents/${Number(result.metadata.documentId)}`}
+                    aria-label={`Open ${result.content.title}`}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <Eye size={14} aria-hidden="true" />
+                      <span className="hidden sm:inline">Open</span>
+                    </Button>
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
