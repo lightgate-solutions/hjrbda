@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { getUser } from "@/actions/auth/dal";
-import { getMyArchivedDocuments } from "@/actions/documents/documents";
-import DocumentsViewWrapper from "@/components/documents/documents-view-wrapper";
 import { db } from "@/db";
 import { documentFolders } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { ArrowLeft, FolderOpen, FileText, Archive } from "lucide-react";
+import { ArrowLeft, FolderOpen, Archive } from "lucide-react";
 import { ViewToggle } from "@/components/documents/view-toggle/view-toggle";
 import { Button } from "@/components/ui/button";
+import ArchivedDocumentsSection from "@/components/documents/archived-documents-section";
 
 export default async function Page({
   searchParams,
@@ -71,9 +70,6 @@ export default async function Page({
   const fStart = fTotal > 0 ? (fPage - 1) * fPageSize + 1 : 0;
   const fEnd = fTotal > 0 ? Math.min(fPage * fPageSize, fTotal) : 0;
 
-  const documents = await getMyArchivedDocuments(dPage, dPageSize);
-  if (documents.error) return null;
-
   const buildQuery = ({
     nextFPage,
     nextDPage,
@@ -89,7 +85,7 @@ export default async function Page({
     return params.toString();
   };
 
-  const isEmpty = archivedFolders.length === 0 && documents.success.total === 0;
+  const isEmpty = archivedFolders.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -233,34 +229,7 @@ export default async function Page({
           )}
 
           {/* Archived Documents */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText
-                size={14}
-                className="text-muted-foreground"
-                aria-hidden="true"
-              />
-              <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Archived Documents
-              </h2>
-              {documents.success.total > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  ({documents.success.total})
-                </span>
-              )}
-            </div>
-
-            <DocumentsViewWrapper
-              documents={documents.success.docs}
-              paging={{
-                page: documents.success.page,
-                pageSize: documents.success.pageSize,
-                total: documents.success.total,
-                totalPages: documents.success.totalPages,
-                hasMore: documents.success.hasMore,
-              }}
-            />
-          </section>
+          <ArchivedDocumentsSection page={dPage} pageSize={dPageSize} />
         </>
       )}
     </div>

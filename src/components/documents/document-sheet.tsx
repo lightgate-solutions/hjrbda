@@ -51,25 +51,35 @@ import { Dropzone, type FileWithMetadata } from "@/components/ui/dropzone";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getDocumentComments,
   addDocumentComment,
-  getDocumentVersions,
   deleteDocumentVersion,
-  getDocumentLogs,
-  getMyDocumentAccess,
-  getDocumentShares,
   addDocumentShare,
   removeDocumentShare,
-  searchEmployeesForShare,
   updateDocumentPublic,
   updateDepartmentAccess,
   type getActiveFolderDocuments,
 } from "@/actions/documents/documents";
 import { uploadNewDocumentVersion } from "@/actions/documents/upload";
 import { DocumentsActions } from "./document-actions";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useDocumentAccess,
+  useDocumentComments,
+  useDocumentVersions,
+  useDocumentLogs,
+  useDocumentShares,
+  useSearchEmployees,
+} from "@/hooks/documents";
+import { useDebounce } from "use-debounce";
+import {
+  DocumentCommentsSkeleton,
+  DocumentVersionsSkeleton,
+  DocumentLogsSkeleton,
+  DocumentSharesSkeleton,
+} from "@/components/skeletons/documents";
 
 type DocumentType = NonNullable<
   Awaited<ReturnType<typeof getActiveFolderDocuments>>["success"]
@@ -93,33 +103,51 @@ export function DocumentSheet({
   const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
   const activeXhrRef = useRef<XMLHttpRequest | null>(null);
-  const isMountedRef = useRef(true);
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState("overview");
-
-  const [comments, setComments] = useState<any[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
-
-  const [versions, setVersions] = useState<any[]>([]);
-  const [versionsLoading, setVersionsLoading] = useState(false);
-
-  const [logs, setLogs] = useState<any[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [myAccess, setMyAccess] = useState<{
-    level: "none" | "view" | "edit" | "manage";
-    isOwner: boolean;
-    isAdminDepartment?: boolean;
-  } | null>(null);
 
   const [shareEmail, setShareEmail] = useState("");
   const [shareLevel, setShareLevel] = useState<"view" | "edit" | "manage">(
     "view",
   );
-  const [shareSuggestions, setShareSuggestions] = useState<any[]>([]);
-  const [shareSuggestionsLoading, setShareSuggestionsLoading] = useState(false);
-  const [shares, setShares] = useState<any[]>([]);
-  const [sharesLoading, setSharesLoading] = useState(false);
+
+  // Internal open state for uncontrolled mode
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = open !== undefined ? open : internalOpen;
+  const handleOpenChange = (value: boolean) => {
+    if (onOpenChange) onOpenChange(value);
+    else setInternalOpen(value);
+  };
+
+  // React Query hooks - gated by sheet open state and active tab
+  const { data: myAccess } = useDocumentAccess(doc.id, isOpen);
+
+  const { data: comments = [], isLoading: commentsLoading } =
+    useDocumentComments(doc.id, isOpen && activeTab === "comments");
+
+  const { data: versions = [], isLoading: versionsLoading } =
+    useDocumentVersions(doc.id, isOpen && activeTab === "versions");
+
+  const { data: logs = [], isLoading: logsLoading } = useDocumentLogs(
+    doc.id,
+    isOpen && activeTab === "history",
+  );
+
+  const { data: shares = [], isLoading: sharesLoading } = useDocumentShares(
+    doc.id,
+    isOpen && activeTab === "permissions",
+  );
+
+  // Debounced employee search
+  const [debouncedSearchEmail] = useDebounce(shareEmail, 300);
+  const { data: shareSuggestions = [], isLoading: shareSuggestionsLoading } =
+    useSearchEmployees(
+      debouncedSearchEmail,
+      8,
+      isOpen && activeTab === "permissions" && debouncedSearchEmail.length >= 2,
+    );
 
   const [publicValue, setPublicValue] = useState(!!doc.public);
   const [pubUpdating, setPubUpdating] = useState(false);
@@ -133,76 +161,6 @@ export function DocumentSheet({
   );
   const [deptUpdating, setDeptUpdating] = useState(false);
 
-  async function loadComments(canceled: { current: boolean }) {
-    try {
-      setCommentsLoading(true);
-      const res = await getDocumentComments(doc.id);
-      if (!canceled.current && isMountedRef.current) {
-        if (res.success) setComments(res.success);
-        else toast.error(res.error?.reason);
-      }
-    } finally {
-      if (!canceled.current && isMountedRef.current) {
-        setCommentsLoading(false);
-      }
-    }
-  }
-
-  async function loadVersions(canceled: { current: boolean }) {
-    try {
-      setVersionsLoading(true);
-      const res = await getDocumentVersions(doc.id);
-      if (!canceled.current && isMountedRef.current) {
-        if (res.success) setVersions(res.success);
-        else toast.error(res.error?.reason);
-      }
-    } finally {
-      if (!canceled.current && isMountedRef.current) {
-        setVersionsLoading(false);
-      }
-    }
-  }
-
-  async function loadLogs(canceled: { current: boolean }) {
-    try {
-      setLogsLoading(true);
-      const res = await getDocumentLogs(doc.id);
-      if (!canceled.current && isMountedRef.current) {
-        if (res.success) setLogs(res.success);
-        else toast.error(res.error?.reason);
-      }
-    } finally {
-      if (!canceled.current && isMountedRef.current) {
-        setLogsLoading(false);
-      }
-    }
-  }
-
-  async function loadMyAccess() {
-    const res = await getMyDocumentAccess(doc.id);
-    if (res.success) setMyAccess(res.success);
-    else toast.error(res.error.reason);
-  }
-
-  useEffect(() => {
-    loadMyAccess();
-  }, []);
-
-  async function loadShares(canceled: { current: boolean }) {
-    try {
-      setSharesLoading(true);
-      const res = await getDocumentShares(doc.id);
-      if (!canceled.current && isMountedRef.current) {
-        if (res.success) setShares(res.success);
-        else if (res.error) toast.error(res.error.reason);
-      }
-    } finally {
-      if (!canceled.current && isMountedRef.current) {
-        setSharesLoading(false);
-      }
-    }
-  }
-
   async function handleShareAdd() {
     const email = shareEmail.trim();
     if (!email) return;
@@ -210,7 +168,9 @@ export function DocumentSheet({
     if (res.success) {
       toast.success(res.success.reason);
       setShareEmail("");
-      await loadShares({ current: false });
+      await queryClient.invalidateQueries({
+        queryKey: ["document-shares", doc.id],
+      });
     } else {
       toast.error(res.error?.reason ?? "Failed to add share");
     }
@@ -220,70 +180,13 @@ export function DocumentSheet({
     const res = await removeDocumentShare(doc.id, userId);
     if (res.success) {
       toast.success(res.success.reason);
-      await loadShares({ current: false });
+      await queryClient.invalidateQueries({
+        queryKey: ["document-shares", doc.id],
+      });
     } else {
       toast.error(res.error?.reason ?? "Failed to remove share");
     }
   }
-
-  useEffect(() => {
-    if (!shareEmail || shareEmail.length < 2) {
-      setShareSuggestions([]);
-      return;
-    }
-    let canceled = false;
-    setShareSuggestionsLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await searchEmployeesForShare(shareEmail);
-        if (!canceled) {
-          if (res.success) setShareSuggestions(res.success);
-          else {
-            setShareSuggestions([]);
-            if (res.error) {
-              toast.error(res.error.reason);
-            }
-          }
-        }
-      } catch (_error) {
-        if (!canceled) {
-          toast.error("Failed to search for employees");
-        }
-      } finally {
-        if (!canceled) setShareSuggestionsLoading(false);
-      }
-    }, 300);
-    return () => {
-      canceled = true;
-      clearTimeout(t);
-    };
-  }, [shareEmail]);
-
-  useEffect(() => {
-    const canceled = { current: false };
-
-    if (activeTab === "comments") loadComments(canceled);
-    if (activeTab === "versions") loadVersions(canceled);
-    if (activeTab === "history") loadLogs(canceled);
-    if (activeTab === "permissions") loadShares(canceled);
-
-    return () => {
-      canceled.current = true;
-    };
-  }, [activeTab, doc.id]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      // Abort any active XHR requests
-      if (activeXhrRef.current) {
-        activeXhrRef.current.abort();
-        activeXhrRef.current = null;
-      }
-    };
-  }, []);
 
   async function handleAddComment() {
     const text = commentText.trim();
@@ -292,7 +195,9 @@ export function DocumentSheet({
     if (res.success) {
       setCommentText("");
       toast.success("Comment added");
-      await loadComments({ current: false });
+      await queryClient.invalidateQueries({
+        queryKey: ["document-comments", doc.id],
+      });
       router.refresh();
     } else {
       toast.error(res.error?.reason ?? "Failed to add comment");
@@ -300,8 +205,6 @@ export function DocumentSheet({
   }
 
   const uploadFile = async (file: File): Promise<string | null | undefined> => {
-    if (!isMountedRef.current) return null;
-
     setFiles((prevFiles) =>
       prevFiles?.map((f) => (f.file === file ? { ...f, uploading: true } : f)),
     );
@@ -336,7 +239,6 @@ export function DocumentSheet({
         activeXhrRef.current = xhr;
         setProgress(70);
         xhr.upload.onprogress = (event) => {
-          if (!isMountedRef.current) return;
           if (event.lengthComputable) {
             const percentComplete = (event.loaded / event.total) * 100;
             setFiles((prevFiles) =>
@@ -355,10 +257,6 @@ export function DocumentSheet({
         };
         setProgress(90);
         xhr.onload = () => {
-          if (!isMountedRef.current) {
-            reject(new Error("Component unmounted"));
-            return;
-          }
           if (xhr.status === 200 || xhr.status === 204) {
             setFiles((prevFiles) =>
               prevFiles?.map((f) =>
@@ -391,16 +289,14 @@ export function DocumentSheet({
       return publicUrl ?? `${url}/${encodeURIComponent(key)}`;
     } catch (error) {
       console.error(error);
-      if (isMountedRef.current) {
-        toast.error("Upload failed");
-        setFiles((prevFiles) =>
-          prevFiles?.map((f) =>
-            f.file === file
-              ? { ...f, uploading: false, progress: 0, error: true }
-              : f,
-          ),
-        );
-      }
+      toast.error("Upload failed");
+      setFiles((prevFiles) =>
+        prevFiles?.map((f) =>
+          f.file === file
+            ? { ...f, uploading: false, progress: 0, error: true }
+            : f,
+        ),
+      );
       return null;
     }
   };
@@ -449,7 +345,7 @@ export function DocumentSheet({
     myAccess?.level === "manage";
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
         {trigger ?? (
           <Button
@@ -482,7 +378,7 @@ export function DocumentSheet({
                 </Badge>
                 <span className="text-muted-foreground">{doc.fileSize} MB</span>
                 <span className="text-muted-foreground">
-                  Modified {doc.updatedAt.toLocaleDateString()}
+                  Modified {doc.updatedAt.toLocaleString()}
                 </span>
               </SheetDescription>
             </div>
@@ -677,7 +573,7 @@ export function DocumentSheet({
                     <div>
                       <p className="text-xs text-muted-foreground">Created</p>
                       <p className="text-sm font-medium">
-                        {doc.createdAt.toLocaleDateString()}
+                        {doc.createdAt.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -760,9 +656,7 @@ export function DocumentSheet({
 
               <div className="space-y-3">
                 {commentsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Spinner />
-                  </div>
+                  <DocumentCommentsSkeleton />
                 ) : comments.length === 0 ? (
                   <div className="text-center py-10">
                     <p className="text-sm text-muted-foreground">
@@ -770,7 +664,7 @@ export function DocumentSheet({
                     </p>
                   </div>
                 ) : (
-                  comments.map((c, idx) => (
+                  comments.map((c: any, idx: number) => (
                     <div
                       key={idx}
                       className="rounded-lg border border-border p-3 space-y-1.5"
@@ -802,9 +696,7 @@ export function DocumentSheet({
             {/* VERSIONS TAB */}
             <TabsContent value="versions" className="m-0 space-y-3">
               {versionsLoading ? (
-                <div className="flex justify-center py-8">
-                  <Spinner />
-                </div>
+                <DocumentVersionsSkeleton />
               ) : versions.length === 0 ? (
                 <div className="text-center py-10">
                   <p className="text-sm text-muted-foreground">
@@ -812,7 +704,7 @@ export function DocumentSheet({
                   </p>
                 </div>
               ) : (
-                versions.map((v) => {
+                versions.map((v: any) => {
                   const isCurrent = v.versionNumber === doc.currentVersion;
                   return (
                     <div
@@ -900,7 +792,9 @@ export function DocumentSheet({
                               );
                               if (res?.success) {
                                 toast.success(res.success.reason);
-                                await loadVersions({ current: false });
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["document-versions", doc.id],
+                                });
                                 router.refresh();
                               } else {
                                 toast.error(
@@ -977,6 +871,9 @@ export function DocumentSheet({
                               if (res?.success) {
                                 setPublicValue(next);
                                 toast.success(res.success.reason);
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["document-access", doc.id],
+                                });
                                 router.refresh();
                               } else {
                                 toast.error(
@@ -1075,6 +972,9 @@ export function DocumentSheet({
                                 );
                                 if (res?.success) {
                                   toast.success(res.success.reason);
+                                  await queryClient.invalidateQueries({
+                                    queryKey: ["document-access", doc.id],
+                                  });
                                   router.refresh();
                                 } else {
                                   toast.error(
@@ -1184,15 +1084,17 @@ export function DocumentSheet({
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs"
-                        onClick={() => loadShares({ current: false })}
+                        onClick={() =>
+                          queryClient.invalidateQueries({
+                            queryKey: ["document-shares", doc.id],
+                          })
+                        }
                       >
                         Refresh
                       </Button>
                     </div>
                     {sharesLoading ? (
-                      <div className="flex justify-center py-4">
-                        <Spinner />
-                      </div>
+                      <DocumentSharesSkeleton />
                     ) : shares.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No one else has access yet
@@ -1235,7 +1137,9 @@ export function DocumentSheet({
                                   );
                                   if (res.success) {
                                     toast.success("Updated");
-                                    await loadShares({ current: false });
+                                    await queryClient.invalidateQueries({
+                                      queryKey: ["document-shares", doc.id],
+                                    });
                                   } else {
                                     toast.error(res.error?.reason ?? "Failed");
                                   }
@@ -1277,8 +1181,12 @@ export function DocumentSheet({
                     size="sm"
                     className="mt-3"
                     onClick={() => {
-                      loadMyAccess();
-                      loadShares({ current: false });
+                      queryClient.invalidateQueries({
+                        queryKey: ["document-access", doc.id],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["document-shares", doc.id],
+                      });
                     }}
                   >
                     Check access
@@ -1290,9 +1198,7 @@ export function DocumentSheet({
             {/* HISTORY TAB */}
             <TabsContent value="history" className="m-0">
               {logsLoading ? (
-                <div className="flex justify-center py-8">
-                  <Spinner />
-                </div>
+                <DocumentLogsSkeleton />
               ) : logs.length === 0 ? (
                 <div className="text-center py-10">
                   <Clock
@@ -1306,7 +1212,7 @@ export function DocumentSheet({
                 </div>
               ) : (
                 <div className="relative ml-3 border-l border-border pl-6 space-y-5 py-1">
-                  {logs.map((l) => (
+                  {logs.map((l: any) => (
                     <div key={l.id} className="relative">
                       <div className="absolute -left-[27px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-border bg-background" />
                       <div className="flex items-start justify-between gap-3">

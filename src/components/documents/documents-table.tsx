@@ -191,7 +191,7 @@ export default function DocumentsTable({
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <span className="text-sm text-muted-foreground">
-                        {doc.updatedAt.toLocaleDateString()}
+                        {doc.updatedAt.toLocaleString()}
                       </span>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
