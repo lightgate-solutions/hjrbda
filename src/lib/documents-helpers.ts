@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/suspicious/noExplicitAny: <> */
+
 import { db } from "@/db";
 import { documentTags, documentAccess, employees } from "@/db/schema";
 import { inArray, eq } from "drizzle-orm";

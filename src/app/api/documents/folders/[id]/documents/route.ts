@@ -11,7 +11,6 @@ import {
   employees,
 } from "@/db/schema";
 import { DrizzleQueryError } from "drizzle-orm";
-import { enrichDocumentsWithTagsAndAccess } from "@/lib/documents-helpers";
 
 export async function GET(
   request: NextRequest,

@@ -51,7 +51,7 @@ import { uploadDocumentsAction } from "@/actions/documents/upload";
 import { Progress } from "../ui/progress";
 import { Spinner } from "../ui/spinner";
 import { UserCombobox } from "@/components/ui/user-combobox";
-import { getAllEmployeesForShare } from "@/actions/documents/documents";
+import { useAllEmployees } from "@/hooks/documents";
 
 const statuses = [
   { label: "Active", value: "active" },
@@ -125,14 +125,7 @@ export default function UploadDocumentButton({
   const [files, setFiles] = useState<FileWithMetadata[]>();
   const [newTag, setNewTag] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [allEmployees, setAllEmployees] = useState<
-    Array<{
-      id: number;
-      name: string | null;
-      email: string | null;
-      department: string | null;
-    }>
-  >([]);
+  const { data: allEmployees = [] } = useAllEmployees(dialogOpen);
   const [selectedEmployees, setSelectedEmployees] = useState<
     Array<{
       id: number;
@@ -210,17 +203,6 @@ export default function UploadDocumentButton({
     // Update form with new metadata array
     fileMetadataReplace(newMetadata);
   }, [files, fileMetadataReplace, form]);
-
-  // Fetch all employees on mount
-  useEffect(() => {
-    async function fetchEmployees() {
-      const result = await getAllEmployeesForShare();
-      if (result.success) {
-        setAllEmployees(result.success);
-      }
-    }
-    fetchEmployees();
-  }, []);
 
   const handleSelectEmployee = (employee: {
     id: number;

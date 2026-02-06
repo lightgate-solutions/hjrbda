@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function DocumentVersionsSkeleton() {

@@ -28,8 +28,7 @@ import { TeamSwitcher } from "./team-switcher";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
 import type { User } from "better-auth";
-import { useEffect, useMemo, useState } from "react";
-import { getUser as getEmployee } from "@/actions/auth/dal";
+import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
@@ -162,48 +161,26 @@ const data = {
 export function AppSidebar({
   user,
   employeeId,
+  employeeRole,
+  employeeDepartment,
+  employeeIsManager,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { user: User; employeeId: number }) {
-  const [isManager, setIsManager] = useState<boolean | null>(null);
-  const [isHrOrAdmin, setIsHrOrAdmin] = useState<boolean>(false);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [isFinanceOrAdmin, setIsFinanceOrAdmin] = useState<boolean>(false);
+}: React.ComponentProps<typeof Sidebar> & {
+  user: User;
+  employeeId: number;
+  employeeRole: string;
+  employeeDepartment: string;
+  employeeIsManager: boolean;
+}) {
+  const isManager = employeeIsManager;
+  const isAdmin = employeeRole === "admin";
+  const isHrOrAdmin = employeeDepartment === "hr" || employeeRole === "admin";
+  const isFinanceOrAdmin =
+    employeeDepartment === "finance" || employeeRole === "admin";
   const notifications = useQuery(api.notifications.getUserNotifications, {
     userId: employeeId,
   });
   const unreadCount = notifications?.filter((n) => !n.isRead).length;
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const emp = await getEmployee();
-        if (active) {
-          setIsManager(!!emp?.isManager);
-          setIsAdmin(emp?.role === "admin");
-
-          if (emp?.department === "hr" || emp?.role === "admin") {
-            setIsHrOrAdmin(true);
-          } else {
-            setIsHrOrAdmin(false);
-          }
-
-          if (emp?.department === "finance" || emp?.role === "admin") {
-            setIsFinanceOrAdmin(true);
-          } else {
-            setIsFinanceOrAdmin(false);
-          }
-        }
-      } catch {
-        if (active) {
-          setIsManager(null);
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const groupedItems = useMemo(() => {
     const base = data.navMain.filter((i) => i.title !== "Task/Performance");

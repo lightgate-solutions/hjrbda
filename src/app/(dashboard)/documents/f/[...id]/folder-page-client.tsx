@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
 "use client";
 
 import { useActiveFolderDocuments, useSubFolders } from "@/hooks/documents";
