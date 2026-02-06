@@ -78,6 +78,8 @@ function getFileTypeInfo(mimeType: string | null | undefined) {
   return { color: "text-muted-foreground", bgColor: "bg-muted" };
 }
 
+const TOTAL_COLUMNS = 7;
+
 export default function DocumentsTable({
   documents,
   paging,
@@ -148,7 +150,7 @@ export default function DocumentsTable({
             {documents.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={TOTAL_COLUMNS}
                   className="text-center text-muted-foreground py-16"
                 >
                   <FileText

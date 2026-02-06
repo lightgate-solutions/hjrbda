@@ -51,7 +51,7 @@ import { Dropzone, type FileWithMetadata } from "@/components/ui/dropzone";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   getDocumentComments,
@@ -92,6 +92,8 @@ export function DocumentSheet({
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
+  const activeXhrRef = useRef<XMLHttpRequest | null>(null);
+  const isMountedRef = useRef(true);
 
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -131,36 +133,48 @@ export function DocumentSheet({
   );
   const [deptUpdating, setDeptUpdating] = useState(false);
 
-  async function loadComments() {
+  async function loadComments(canceled: { current: boolean }) {
     try {
       setCommentsLoading(true);
       const res = await getDocumentComments(doc.id);
-      if (res.success) setComments(res.success);
-      else toast.error(res.error?.reason);
+      if (!canceled.current && isMountedRef.current) {
+        if (res.success) setComments(res.success);
+        else toast.error(res.error?.reason);
+      }
     } finally {
-      setCommentsLoading(false);
+      if (!canceled.current && isMountedRef.current) {
+        setCommentsLoading(false);
+      }
     }
   }
 
-  async function loadVersions() {
+  async function loadVersions(canceled: { current: boolean }) {
     try {
       setVersionsLoading(true);
       const res = await getDocumentVersions(doc.id);
-      if (res.success) setVersions(res.success);
-      else toast.error(res.error?.reason);
+      if (!canceled.current && isMountedRef.current) {
+        if (res.success) setVersions(res.success);
+        else toast.error(res.error?.reason);
+      }
     } finally {
-      setVersionsLoading(false);
+      if (!canceled.current && isMountedRef.current) {
+        setVersionsLoading(false);
+      }
     }
   }
 
-  async function loadLogs() {
+  async function loadLogs(canceled: { current: boolean }) {
     try {
       setLogsLoading(true);
       const res = await getDocumentLogs(doc.id);
-      if (res.success) setLogs(res.success);
-      else toast.error(res.error?.reason);
+      if (!canceled.current && isMountedRef.current) {
+        if (res.success) setLogs(res.success);
+        else toast.error(res.error?.reason);
+      }
     } finally {
-      setLogsLoading(false);
+      if (!canceled.current && isMountedRef.current) {
+        setLogsLoading(false);
+      }
     }
   }
 
@@ -174,14 +188,18 @@ export function DocumentSheet({
     loadMyAccess();
   }, []);
 
-  async function loadShares() {
+  async function loadShares(canceled: { current: boolean }) {
     try {
       setSharesLoading(true);
       const res = await getDocumentShares(doc.id);
-      if (res.success) setShares(res.success);
-      else if (res.error) toast.error(res.error.reason);
+      if (!canceled.current && isMountedRef.current) {
+        if (res.success) setShares(res.success);
+        else if (res.error) toast.error(res.error.reason);
+      }
     } finally {
-      setSharesLoading(false);
+      if (!canceled.current && isMountedRef.current) {
+        setSharesLoading(false);
+      }
     }
   }
 
@@ -192,7 +210,7 @@ export function DocumentSheet({
     if (res.success) {
       toast.success(res.success.reason);
       setShareEmail("");
-      await loadShares();
+      await loadShares({ current: false });
     } else {
       toast.error(res.error?.reason ?? "Failed to add share");
     }
@@ -202,7 +220,7 @@ export function DocumentSheet({
     const res = await removeDocumentShare(doc.id, userId);
     if (res.success) {
       toast.success(res.success.reason);
-      await loadShares();
+      await loadShares({ current: false });
     } else {
       toast.error(res.error?.reason ?? "Failed to remove share");
     }
@@ -220,7 +238,16 @@ export function DocumentSheet({
         const res = await searchEmployeesForShare(shareEmail);
         if (!canceled) {
           if (res.success) setShareSuggestions(res.success);
-          else setShareSuggestions([]);
+          else {
+            setShareSuggestions([]);
+            if (res.error) {
+              toast.error(res.error.reason);
+            }
+          }
+        }
+      } catch (_error) {
+        if (!canceled) {
+          toast.error("Failed to search for employees");
         }
       } finally {
         if (!canceled) setShareSuggestionsLoading(false);
@@ -233,11 +260,30 @@ export function DocumentSheet({
   }, [shareEmail]);
 
   useEffect(() => {
-    if (activeTab === "comments") loadComments();
-    if (activeTab === "versions") loadVersions();
-    if (activeTab === "history") loadLogs();
-    if (activeTab === "permissions") loadShares();
+    const canceled = { current: false };
+
+    if (activeTab === "comments") loadComments(canceled);
+    if (activeTab === "versions") loadVersions(canceled);
+    if (activeTab === "history") loadLogs(canceled);
+    if (activeTab === "permissions") loadShares(canceled);
+
+    return () => {
+      canceled.current = true;
+    };
   }, [activeTab, doc.id]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Abort any active XHR requests
+      if (activeXhrRef.current) {
+        activeXhrRef.current.abort();
+        activeXhrRef.current = null;
+      }
+    };
+  }, []);
 
   async function handleAddComment() {
     const text = commentText.trim();
@@ -246,7 +292,7 @@ export function DocumentSheet({
     if (res.success) {
       setCommentText("");
       toast.success("Comment added");
-      await loadComments();
+      await loadComments({ current: false });
       router.refresh();
     } else {
       toast.error(res.error?.reason ?? "Failed to add comment");
@@ -254,6 +300,8 @@ export function DocumentSheet({
   }
 
   const uploadFile = async (file: File): Promise<string | null | undefined> => {
+    if (!isMountedRef.current) return null;
+
     setFiles((prevFiles) =>
       prevFiles?.map((f) => (f.file === file ? { ...f, uploading: true } : f)),
     );
@@ -285,8 +333,10 @@ export function DocumentSheet({
       const { presignedUrl, key, publicUrl } = await presignedResponse.json();
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
+        activeXhrRef.current = xhr;
         setProgress(70);
         xhr.upload.onprogress = (event) => {
+          if (!isMountedRef.current) return;
           if (event.lengthComputable) {
             const percentComplete = (event.loaded / event.total) * 100;
             setFiles((prevFiles) =>
@@ -305,6 +355,10 @@ export function DocumentSheet({
         };
         setProgress(90);
         xhr.onload = () => {
+          if (!isMountedRef.current) {
+            reject(new Error("Component unmounted"));
+            return;
+          }
           if (xhr.status === 200 || xhr.status === 204) {
             setFiles((prevFiles) =>
               prevFiles?.map((f) =>
@@ -313,12 +367,21 @@ export function DocumentSheet({
                   : f,
               ),
             );
+            activeXhrRef.current = null;
             resolve();
           } else {
+            activeXhrRef.current = null;
             reject(new Error(`Upload failed with status: ${xhr.status}`));
           }
         };
-        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.onerror = () => {
+          activeXhrRef.current = null;
+          reject(new Error("Upload failed"));
+        };
+        xhr.onabort = () => {
+          activeXhrRef.current = null;
+          reject(new Error("Upload aborted"));
+        };
         xhr.open("PUT", presignedUrl);
         xhr.setRequestHeader("Content-Type", file.type);
         xhr.send(file);
@@ -328,14 +391,16 @@ export function DocumentSheet({
       return publicUrl ?? `${url}/${encodeURIComponent(key)}`;
     } catch (error) {
       console.error(error);
-      toast.error("Upload failed");
-      setFiles((prevFiles) =>
-        prevFiles?.map((f) =>
-          f.file === file
-            ? { ...f, uploading: false, progress: 0, error: true }
-            : f,
-        ),
-      );
+      if (isMountedRef.current) {
+        toast.error("Upload failed");
+        setFiles((prevFiles) =>
+          prevFiles?.map((f) =>
+            f.file === file
+              ? { ...f, uploading: false, progress: 0, error: true }
+              : f,
+          ),
+        );
+      }
       return null;
     }
   };
@@ -425,39 +490,43 @@ export function DocumentSheet({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 pt-4">
-            <Link
-              target="_blank"
-              href={doc.filePath ?? ""}
-              rel="noopener noreferrer"
-              aria-label="Open document in new tab"
-            >
-              <Button size="sm" variant="outline" className="gap-1.5">
-                <Eye size={14} aria-hidden="true" />
-                View
+            {doc.filePath && (
+              <Link
+                target="_blank"
+                href={doc.filePath}
+                rel="noopener noreferrer"
+                aria-label="Open document in new tab"
+              >
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Eye size={14} aria-hidden="true" />
+                  View
+                </Button>
+              </Link>
+            )}
+            {doc.filePath && (
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  const url = doc.filePath;
+                  if (!url) return;
+                  try {
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  } catch {
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                aria-label="Download document"
+              >
+                <Download size={14} aria-hidden="true" />
+                Download
               </Button>
-            </Link>
-            <Button
-              size="sm"
-              className="gap-1.5"
-              onClick={() => {
-                const url = doc.filePath ?? "";
-                if (!url) return;
-                try {
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "";
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                } catch {
-                  window.open(url, "_blank", "noopener,noreferrer");
-                }
-              }}
-              aria-label="Download document"
-            >
-              <Download size={14} aria-hidden="true" />
-              Download
-            </Button>
+            )}
 
             <Dialog>
               <DialogTrigger asChild>
@@ -791,28 +860,34 @@ export function DocumentSheet({
                         </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => {
-                            const url = v.filePath ?? "";
-                            if (!url) return;
-                            try {
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `${doc.title}-v${v.versionNumber}`;
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
-                            } catch {
-                              window.open(url, "_blank", "noopener,noreferrer");
-                            }
-                          }}
-                          aria-label={`Download version ${v.versionNumber}`}
-                        >
-                          <Download size={14} />
-                        </Button>
+                        {v.filePath && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              const url = v.filePath;
+                              if (!url) return;
+                              try {
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `${doc.title}-v${v.versionNumber}`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              } catch {
+                                window.open(
+                                  url,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              }
+                            }}
+                            aria-label={`Download version ${v.versionNumber}`}
+                          >
+                            <Download size={14} />
+                          </Button>
+                        )}
                         {!isCurrent && (
                           <Button
                             variant="ghost"
@@ -825,7 +900,7 @@ export function DocumentSheet({
                               );
                               if (res?.success) {
                                 toast.success(res.success.reason);
-                                await loadVersions();
+                                await loadVersions({ current: false });
                                 router.refresh();
                               } else {
                                 toast.error(
@@ -1067,7 +1142,7 @@ export function DocumentSheet({
                     )}
                     {shareSuggestions.length > 0 && (
                       <div className="rounded-lg border border-border divide-y divide-border max-h-36 overflow-y-auto">
-                        {shareSuggestions.map((s: any) => (
+                        {shareSuggestions.slice(0, 20).map((s: any) => (
                           <button
                             type="button"
                             key={s.id}
@@ -1109,7 +1184,7 @@ export function DocumentSheet({
                         variant="ghost"
                         size="sm"
                         className="h-7 text-xs"
-                        onClick={() => loadShares()}
+                        onClick={() => loadShares({ current: false })}
                       >
                         Refresh
                       </Button>
@@ -1160,7 +1235,7 @@ export function DocumentSheet({
                                   );
                                   if (res.success) {
                                     toast.success("Updated");
-                                    await loadShares();
+                                    await loadShares({ current: false });
                                   } else {
                                     toast.error(res.error?.reason ?? "Failed");
                                   }
@@ -1203,7 +1278,7 @@ export function DocumentSheet({
                     className="mt-3"
                     onClick={() => {
                       loadMyAccess();
-                      loadShares();
+                      loadShares({ current: false });
                     }}
                   >
                     Check access

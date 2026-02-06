@@ -1,8 +1,7 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
 "use client";
 
-import { Archive, FolderOpen, LogIn, MoreVertical, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Archive, FolderOpen, MoreVertical, Trash2 } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,

@@ -44,14 +44,15 @@ async function getUsersFolderId(folder: string) {
   if (!user) throw new Error("User not logged in");
 
   let folderQuery: any;
+  const normalizedFolder = folder.trim().toLowerCase();
 
-  if (user.department === folder) {
+  if (user.department.toLowerCase() === normalizedFolder) {
     folderQuery = await db
       .select({ id: documentFolders.id })
       .from(documentFolders)
       .where(
         and(
-          eq(documentFolders.name, folder),
+          eq(documentFolders.name, normalizedFolder),
           eq(documentFolders.department, user.department),
           eq(documentFolders.departmental, true),
         ),
@@ -61,7 +62,7 @@ async function getUsersFolderId(folder: string) {
     if (folderQuery.length > 0) return folderQuery;
   }
 
-  if (folder === "public") {
+  if (normalizedFolder === "public") {
     folderQuery = await db
       .select({ id: documentFolders.id })
       .from(documentFolders)
@@ -76,7 +77,7 @@ async function getUsersFolderId(folder: string) {
     .from(documentFolders)
     .where(
       and(
-        eq(documentFolders.name, folder),
+        eq(documentFolders.name, normalizedFolder),
         eq(documentFolders.createdBy, user.id),
       ),
     )
@@ -87,10 +88,10 @@ async function getUsersFolderId(folder: string) {
   const [newFolder] = await db
     .insert(documentFolders)
     .values({
-      name: folder,
+      name: normalizedFolder,
       createdBy: user.id,
       department: user.department,
-      departmental: user.department === folder,
+      departmental: user.department.toLowerCase() === normalizedFolder,
     })
     .returning({ id: documentFolders.id });
 
@@ -125,39 +126,56 @@ export async function uploadDocumentsAction(data: UploadActionProps) {
         .set({ documentCount: updatedCount })
         .where(eq(employees.id, user.id));
 
+      const maxTitleLength = 255;
       const insertedDocuments = await tx
         .insert(document)
         .values(
-          data.Files.map((file, idx) => ({
-            title: data.Files.length > 1 ? `${data.title}-${idx}` : data.title,
-            description: data.description ?? "No description",
-            originalFileName: file.originalFileName,
-            department: user.department,
-            departmental: effectiveDepartmental,
-            folderId,
-            public: effectivePublic,
-            uploadedBy: user.id,
-            status: data.status,
-          })),
+          data.Files.map((file, idx) => {
+            const rawTitle =
+              data.Files.length > 1 ? `${data.title}-${idx}` : data.title;
+            const sanitizedTitle = rawTitle
+              .trim()
+              // biome-ignore lint/suspicious/noControlCharactersInRegex: <>
+              .replace(/[\u0000-\u001F\u007F]/gu, "")
+              .slice(0, maxTitleLength);
+
+            if (!sanitizedTitle) {
+              throw new Error("Document title cannot be empty");
+            }
+
+            return {
+              title: sanitizedTitle,
+              description: data.description ?? "No description",
+              originalFileName: file.originalFileName,
+              department: user.department,
+              departmental: effectiveDepartmental,
+              folderId,
+              public: effectivePublic,
+              uploadedBy: user.id,
+              status: data.status,
+            };
+          }),
         )
         .returning();
 
       // Insert to upstash search
-      insertedDocuments.map(async (doc) => {
-        const item = {
-          id: doc.upstashId,
-          content: {
-            title: doc.title,
-            description: doc.description,
-            tags: data.tags,
-          },
-          metadata: {
-            department: doc.department,
-            documentId: doc.id.toString(),
-          },
-        };
-        await upstashIndex.upsert([item]);
-      });
+      await Promise.all(
+        insertedDocuments.map(async (doc) => {
+          const item = {
+            id: doc.upstashId,
+            content: {
+              title: doc.title,
+              description: doc.description,
+              tags: data.tags,
+            },
+            metadata: {
+              department: doc.department,
+              documentId: doc.id.toString(),
+            },
+          };
+          await upstashIndex.upsert([item]);
+        }),
+      );
 
       const versionsToInsert = insertedDocuments.map((doc, index) => {
         const file = data.Files[index];
@@ -358,6 +376,37 @@ export async function uploadNewDocumentVersion(data: UploadNewVersionProps) {
   if (!user) throw new Error("User not logged in");
   try {
     await db.transaction(async (tx) => {
+      // Check authorization
+      const doc = await tx.query.document.findFirst({
+        where: eq(document.id, data.id),
+      });
+      if (!doc) throw new Error("Document not found");
+
+      const accessRows = await tx
+        .select({
+          userId: documentAccess.userId,
+          department: documentAccess.department,
+          accessLevel: documentAccess.accessLevel,
+        })
+        .from(documentAccess)
+        .where(eq(documentAccess.documentId, data.id));
+
+      const hasEditAccess = accessRows.some(
+        (a) =>
+          (a.userId === user.id &&
+            (a.accessLevel === "edit" || a.accessLevel === "manage")) ||
+          (a.department &&
+            a.department === user.department &&
+            (a.accessLevel === "edit" || a.accessLevel === "manage")),
+      );
+
+      const isOwner = doc.uploadedBy === user.id;
+      const isAdmin = user.role === "admin";
+
+      if (!isOwner && !hasEditAccess && !isAdmin) {
+        throw new Error("You don't have permission to upload new versions");
+      }
+
       const [version] = await tx
         .insert(documentVersions)
         .values({
