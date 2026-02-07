@@ -406,7 +406,8 @@ function DocumentPage({
                 {doc.description ?? "No description available"}
               </div>
               <div className="text-muted-foreground text-sm">
-                {doc.fileSize} MB • Modified {doc.updatedAt.toLocaleString()}
+                {doc.fileSize} MB • Modified{" "}
+                {new Date(doc.updatedAt).toLocaleDateString()}
               </div>
             </div>
           </div>

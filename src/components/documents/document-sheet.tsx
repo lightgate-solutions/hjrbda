@@ -378,7 +378,7 @@ export function DocumentSheet({
                 </Badge>
                 <span className="text-muted-foreground">{doc.fileSize} MB</span>
                 <span className="text-muted-foreground">
-                  Modified {doc.updatedAt.toLocaleString()}
+                  Modified {new Date(doc.updatedAt).toLocaleDateString()}
                 </span>
               </SheetDescription>
             </div>
