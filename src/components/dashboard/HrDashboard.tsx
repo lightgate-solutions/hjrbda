@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardStats } from "./dashboard-stats";
-import { Users, UserCheck, ClipboardList } from "lucide-react";
+import { Users, UserCheck } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -83,42 +83,6 @@ export default function HrDashboard() {
               className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1.5 group/link"
             >
               Manage users
-              <svg
-                className="size-3 transition-transform group-hover/link:translate-x-0.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="group relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border-border/40">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2.5 text-lg">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <ClipboardList className="size-4 text-primary" />
-              </div>
-              All Tasks
-            </CardTitle>
-            <CardDescription className="text-sm">
-              View and manage all tasks across the organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link
-              href="/hr/admin/tasks"
-              className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1.5 group/link"
-            >
-              View tasks
               <svg
                 className="size-3 transition-transform group-hover/link:translate-x-0.5"
                 fill="none"

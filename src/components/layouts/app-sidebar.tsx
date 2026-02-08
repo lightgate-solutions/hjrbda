@@ -2,16 +2,13 @@
 
 import type * as React from "react";
 import {
-  AlarmClockCheck,
   Folder,
   GalleryVerticalEnd,
-  Landmark,
   Mail,
   TvMinimal,
   Users,
   Warehouse,
   Bell,
-  DollarSign,
   Newspaper,
   Bug,
   Logs,
@@ -78,12 +75,6 @@ const data = {
       ],
     },
     {
-      title: "Finance",
-      url: "/finance",
-      icon: Landmark,
-    },
-    // Task/Performance is customized per role at runtime
-    {
       title: "Mail",
       url: "/mail/inbox",
       icon: Mail,
@@ -121,10 +112,6 @@ const data = {
           url: "/hr/ask-hr",
         },
         {
-          title: "Loan Management",
-          url: "/hr/loans",
-        },
-        {
           title: "Leave Management",
           url: "/hr/leaves",
         },
@@ -145,25 +132,6 @@ const data = {
         },
       ],
     },
-    {
-      title: "Payroll",
-      url: "/payroll",
-      icon: DollarSign,
-      items: [
-        {
-          title: "Salary Structures",
-          url: "/payroll/structure",
-        },
-        {
-          title: "Employees",
-          url: "/payroll/employees",
-        },
-        {
-          title: "Payrun",
-          url: "/payroll/payrun",
-        },
-      ],
-    },
   ],
 };
 
@@ -172,10 +140,9 @@ export function AppSidebar({
   employeeId,
   ...props
 }: React.ComponentProps<typeof Sidebar> & { user: User; employeeId: number }) {
-  const [isManager, setIsManager] = useState<boolean | null>(null);
+  const [_isManager, setIsManager] = useState<boolean | null>(null);
   const [isHrOrAdmin, setIsHrOrAdmin] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [isFinanceOrAdmin, setIsFinanceOrAdmin] = useState<boolean>(false);
   const notifications = useQuery(api.notifications.getUserNotifications, {
     userId: employeeId,
   });
@@ -195,12 +162,6 @@ export function AppSidebar({
           } else {
             setIsHrOrAdmin(false);
           }
-
-          if (emp?.department === "finance" || emp?.role === "admin") {
-            setIsFinanceOrAdmin(true);
-          } else {
-            setIsFinanceOrAdmin(false);
-          }
         }
       } catch {
         if (active) {
@@ -214,15 +175,10 @@ export function AppSidebar({
   }, []);
 
   const groupedItems = useMemo(() => {
-    const base = data.navMain.filter((i) => i.title !== "Task/Performance");
+    const base = [...data.navMain];
 
     // Filter base items based on role permissions
     const filteredBase = base.filter((item) => {
-      // Finance: only admin and finance can see
-      if (item.title === "Finance") {
-        return isFinanceOrAdmin;
-      }
-
       // Hr: filter sub-items based on role
       if (item.title === "Hr") {
         const hrItems = item.items?.filter((subItem) => {
@@ -266,30 +222,6 @@ export function AppSidebar({
       return item;
     });
 
-    const taskItem = {
-      title: "Task/Performance",
-      url: "/tasks",
-      icon: AlarmClockCheck,
-      items: isHrOrAdmin
-        ? [
-            { title: "Task Items", url: "/tasks" },
-            { title: "To Do", url: "/tasks/employee" },
-            { title: "Submitted Tasks", url: "/tasks/manager" },
-            { title: "All Company Tasks", url: "/tasks/all" },
-            { title: "Self Assignment", url: "/tasks/self" },
-          ]
-        : isManager
-          ? [
-              { title: "Task Items", url: "/tasks" },
-              { title: "To Do", url: "/tasks/employee" },
-              { title: "Submitted Tasks", url: "/tasks/manager" },
-              { title: "Self Assignment", url: "/tasks/self" },
-            ]
-          : [
-              { title: "Tasks", url: "/tasks" },
-              { title: "Self Assignment", url: "/tasks/self" },
-            ],
-    };
     const newsItem = {
       title: "News",
       url: "/news",
@@ -302,7 +234,7 @@ export function AppSidebar({
         : [{ title: "View News", url: "/news" }],
     };
 
-    const allItems = [...updatedBase, taskItem, newsItem];
+    const allItems = [...updatedBase, newsItem];
 
     // Only show Data Export to admins
     if (isAdmin) {
@@ -331,13 +263,9 @@ export function AppSidebar({
     allItems.forEach((item) => {
       if (["Dashboard", "Attendance"].includes(item.title)) {
         groups.overview.push(item);
-      } else if (
-        ["Documents", "Mail", "Projects", "Task/Performance"].includes(
-          item.title,
-        )
-      ) {
+      } else if (["Documents", "Mail", "Projects"].includes(item.title)) {
         groups.modules.push(item);
-      } else if (["Finance", "Hr", "Payroll"].includes(item.title)) {
+      } else if (item.title === "Hr") {
         groups.management.push(item);
       } else {
         groups.system.push(item);
@@ -345,7 +273,7 @@ export function AppSidebar({
     });
 
     return groups;
-  }, [isManager, isHrOrAdmin, isAdmin, isFinanceOrAdmin]);
+  }, [isHrOrAdmin, isAdmin]);
 
   return (
     <Sidebar collapsible="icon" {...props}>

@@ -29,7 +29,13 @@ import { toast } from "sonner";
 
 type Supervisor = { id: number; name: string; email: string };
 type Contractor = { id: number; name: string };
-type Employee = { id: number; name: string; email: string };
+type Employee = {
+  id: number;
+  name: string;
+  email: string;
+  isManager?: boolean | number;
+  role?: string;
+};
 
 type Props = {
   trigger: React.ReactNode;
@@ -89,7 +95,7 @@ export function ProjectFormDialog({ trigger, initial, onCompleted }: Props) {
       setEmployees(filteredEmployees);
       setSupervisors(
         (empData as Employee[]).filter(
-          (e: any) => e.isManager || e.role.toLowerCase() === "admin",
+          (e) => e.isManager || e.role?.toLowerCase() === "admin",
         ),
       );
       setContractors(contData);
@@ -126,7 +132,7 @@ export function ProjectFormDialog({ trigger, initial, onCompleted }: Props) {
         memberIds: selectedMembers.map(Number),
         budgetPlanned: Number(budgetPlanned) || 0,
         budgetActual: Number(budgetActual) || 0,
-        status: status as any,
+        status: status as "pending" | "in-progress" | "completed",
       };
 
       const result = initial?.id

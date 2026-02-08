@@ -20,11 +20,13 @@ export async function GET(
       .from(milestones)
       .where(eq(milestones.projectId, projectId));
     return NextResponse.json({ milestones: rows });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching milestones:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch milestones";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch milestones" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }
@@ -55,11 +57,13 @@ export async function POST(
       })
       .returning();
     return NextResponse.json({ milestone: created }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating milestone:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to create milestone";
     return NextResponse.json(
-      { error: error.message || "Failed to create milestone" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }
@@ -101,11 +105,13 @@ export async function PUT(
       )
       .returning();
     return NextResponse.json({ milestone: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating milestone:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to update milestone";
     return NextResponse.json(
-      { error: error.message || "Failed to update milestone" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }
@@ -134,11 +140,13 @@ export async function DELETE(
         ),
       );
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting milestone:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to delete milestone";
     return NextResponse.json(
-      { error: error.message || "Failed to delete milestone" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }
