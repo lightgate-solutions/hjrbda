@@ -8,6 +8,13 @@
       "when": 1770146757366,
       "tag": "0000_fine_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770543164188,
+      "tag": "0001_watery_ghost_rider",
+      "breakpoints": true
     }
   ]
 }
