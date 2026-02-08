@@ -1,14 +1,47 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getProjectExportData } from "@/actions/projects";
 import { createObjectCsvStringifier } from "csv-writer";
 import { getOrganization } from "@/actions/organization";
 import { addPdfHeader } from "@/lib/pdf-utils";
+import { db } from "@/db";
+import { projects, projectMembers } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getUser } from "@/actions/auth/dal";
+
+async function checkProjectAccess(
+  projectId: number,
+  userId: number,
+  isAdmin: boolean,
+) {
+  if (isAdmin) return true;
+
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.id, projectId),
+    with: {
+      members: {
+        where: eq(projectMembers.employeeId, userId),
+      },
+    },
+  });
+
+  if (!project) return false;
+
+  return (
+    project.creatorId === userId ||
+    project.supervisorId === userId ||
+    project.members.length > 0
+  );
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number.parseInt(id, 10);
 
@@ -19,10 +52,117 @@ export async function GET(
       );
     }
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
+    // Check access
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
+
+    // Get project with all related data
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, projectId),
+      with: {
+        supervisor: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            department: true,
+          },
+        },
+        contractor: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        creator: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        members: {
+          with: {
+            employee: {
+              columns: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                department: true,
+              },
+            },
+          },
+        },
+        milestones: {
+          orderBy: (milestones, { asc }) => [asc(milestones.dueDate)],
+        },
+        expenses: {
+          orderBy: (expenses, { desc }) => [desc(expenses.spentAt)],
+        },
+      },
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // Calculate metrics
+    const totalExpenses = project.expenses.reduce(
+      (sum, exp) => sum + (exp.amount ?? 0),
+      0,
+    );
+    const remainingBudget = (project.budgetPlanned ?? 0) - totalExpenses;
+    const completedMilestones = project.milestones.filter(
+      (m) => m.completed,
+    ).length;
+    const totalMilestones = project.milestones.length;
+    const progressPercentage =
+      totalMilestones > 0
+        ? Math.round((completedMilestones / totalMilestones) * 100)
+        : 0;
+
+    const data = {
+      project: {
+        id: project.id,
+        name: project.name,
+        code: project.code,
+        description: project.description,
+        location: project.location,
+        status: project.status,
+        budgetPlanned: project.budgetPlanned,
+        budgetActual: project.budgetActual,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      },
+      supervisor: project.supervisor,
+      contractor: project.contractor,
+      creator: project.creator,
+      members: project.members.map((m) => m.employee),
+      milestones: project.milestones,
+      expenses: project.expenses,
+      metrics: {
+        totalExpenses,
+        remainingBudget,
+        completedMilestones,
+        totalMilestones,
+        progressPercentage,
+      },
+    };
+
     const searchParams = request.nextUrl.searchParams;
     const format = searchParams.get("format") || "csv";
-
-    const data = await getProjectExportData(projectId);
 
     if (format === "pdf") {
       return await generatePDF(data);
@@ -37,7 +177,61 @@ export async function GET(
   }
 }
 
-function generateCSV(data: Awaited<ReturnType<typeof getProjectExportData>>) {
+type ExportData = {
+  project: {
+    id: number;
+    name: string;
+    code: string;
+    description: string | null;
+    location: string | null;
+    status: string;
+    budgetPlanned: number | null;
+    budgetActual: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  supervisor: {
+    id: number;
+    name: string;
+    email: string;
+    department: string;
+  } | null;
+  contractor: {
+    id: number;
+    name: string;
+    email: string | null;
+    phone: string | null;
+  } | null;
+  creator: { id: number; name: string; email: string | null } | null;
+  members: {
+    id: number;
+    name: string;
+    email: string | null;
+    role: string | null;
+    department: string | null;
+  }[];
+  milestones: {
+    title: string;
+    description: string | null;
+    dueDate: Date | string | null;
+    completed: number | boolean;
+  }[];
+  expenses: {
+    title: string;
+    amount: number | null;
+    spentAt: Date | string | null;
+    notes: string | null;
+  }[];
+  metrics: {
+    totalExpenses: number;
+    remainingBudget: number;
+    completedMilestones: number;
+    totalMilestones: number;
+    progressPercentage: number;
+  };
+};
+
+function generateCSV(data: ExportData) {
   const rows: Record<string, string | number | undefined>[] = [];
 
   // Project Overview Section
@@ -173,9 +367,7 @@ function generateCSV(data: Awaited<ReturnType<typeof getProjectExportData>>) {
   });
 }
 
-async function generatePDF(
-  data: Awaited<ReturnType<typeof getProjectExportData>>,
-) {
+async function generatePDF(data: ExportData) {
   // Import jsPDF dynamically to avoid SSR issues
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");

@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: <> */
 
 import { db } from "@/db";
-import { employees, projects, projectMembers } from "@/db/schema";
+import { projects, projectMembers } from "@/db/schema";
 import {
   and,
   asc,
@@ -122,27 +122,32 @@ export async function GET(request: NextRequest) {
     const order =
       sortDirection === "asc" ? asc(orderColumn) : desc(orderColumn);
 
-    const rows = await db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        code: projects.code,
-        description: projects.description,
-        location: projects.location,
-        status: projects.status,
-        budgetPlanned: projects.budgetPlanned,
-        budgetActual: projects.budgetActual,
-        supervisorId: projects.supervisorId,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-        supervisorName: employees.name,
-      })
-      .from(projects)
-      .leftJoin(employees, eq(employees.id, projects.supervisorId))
-      .where(where)
-      .orderBy(order)
-      .limit(limit)
-      .offset(offset);
+    const rows = await db.query.projects.findMany({
+      where,
+      orderBy: [order],
+      limit,
+      offset,
+      with: {
+        supervisor: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        members: {
+          with: {
+            employee: {
+              columns: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     return NextResponse.json({
       projects: rows,

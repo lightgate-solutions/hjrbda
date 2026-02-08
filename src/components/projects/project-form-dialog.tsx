@@ -49,8 +49,8 @@ type Props = {
     contractorId?: number | null;
     members?: { employeeId: number }[];
     status?: string;
-    budgetPlanned?: number;
-    budgetActual?: number;
+    budgetPlanned?: number | null;
+    budgetActual?: number | null;
   } | null;
   onCompleted?: () => void;
 };

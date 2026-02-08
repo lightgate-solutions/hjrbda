@@ -2,7 +2,7 @@
 /** biome-ignore-all lint/a11y/useKeyWithClickEvents: <> */
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -33,9 +33,10 @@ import {
 } from "@/components/ui/pagination";
 import { Separator } from "@/components/ui/separator";
 import { ProjectFormDialog } from "./project-form-dialog";
-import { listProjects, deleteProject } from "@/actions/projects";
-import { getUser } from "@/actions/auth/dal";
+import { deleteProject } from "@/actions/projects";
 import { toast } from "sonner";
+import { useProjects } from "@/hooks/projects";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 type Project = {
   id: number;
@@ -45,54 +46,34 @@ type Project = {
   location: string | null;
   status: string;
   supervisorId: number | null;
-  creatorId: number;
+  creatorId: number | null;
   createdAt: Date | string;
   members?: { employeeId: number }[];
 };
 
 export function ProjectsTable() {
   const router = useRouter();
-  const [items, setItems] = useState<Project[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<Awaited<
-    ReturnType<typeof getUser>
-  > | null>(null);
+  // Fetch current user using React Query (GET instead of POST)
+  const { data: currentUser } = useCurrentUser();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const uData = await getUser();
-      setCurrentUser(uData);
+  // Fetch projects using React Query
+  const { data, isLoading, refetch } = useProjects({
+    page,
+    limit,
+    q,
+    status: status === "all" ? "" : status,
+    dateFrom,
+    dateTo,
+  });
 
-      const res = await listProjects({
-        page,
-        limit,
-        q,
-        // Status filtering is handled by listProjects if we update it,
-        // but for now listProjects only handles q.
-        // I'll stick to q and pagination for now as listProjects is already implemented.
-      });
-
-      let filteredProjects = res.projects;
-      if (status !== "all") {
-        filteredProjects = filteredProjects.filter((p) => p.status === status);
-      }
-
-      setItems(filteredProjects as Project[]);
-      setTotal(res.total);
-    } catch (error) {
-      console.error("Error loading projects:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, limit, q, status]);
+  const items = data?.projects ?? [];
+  const total = data?.total ?? 0;
 
   // Reset to page 1 when filters change
   const prevFiltersRef = useRef({ q, status, dateFrom, dateTo });
@@ -110,20 +91,20 @@ export function ProjectsTable() {
     }
   }, [q, status, dateFrom, dateTo]);
 
+  // Dispatch custom event for filters
   useEffect(() => {
-    load();
     if (typeof window !== "undefined") {
       const detail = { q, status, dateFrom, dateTo };
       window.dispatchEvent(new CustomEvent("projects:filters", { detail }));
     }
-  }, [load, q, status, dateFrom, dateTo]);
+  }, [q, status, dateFrom, dateTo]);
 
   async function onDelete(id: number) {
     if (!confirm("Are you sure you want to delete this project?")) return;
     const res = await deleteProject(id);
     if (res.success) {
       toast.success("Project deleted");
-      load();
+      refetch();
     } else {
       toast.error(res.error?.reason || "Failed to delete project");
     }
@@ -221,7 +202,7 @@ export function ProjectsTable() {
           </div>
           {canCreate && (
             <ProjectFormDialog
-              onCompleted={() => load()}
+              onCompleted={() => refetch()}
               trigger={<Button className="ml-auto">New Project</Button>}
             />
           )}
@@ -229,7 +210,7 @@ export function ProjectsTable() {
       </div>
       <Separator />
 
-      {loading ? (
+      {isLoading ? (
         <div className="py-20 text-center">Loading projects...</div>
       ) : view === "list" ? (
         <div className="rounded-md border bg-card">
@@ -301,7 +282,7 @@ export function ProjectsTable() {
                         <>
                           <ProjectFormDialog
                             initial={p}
-                            onCompleted={() => load()}
+                            onCompleted={() => refetch()}
                             trigger={
                               <Button
                                 variant="ghost"
@@ -398,7 +379,7 @@ export function ProjectsTable() {
                       <>
                         <ProjectFormDialog
                           initial={p}
-                          onCompleted={() => load()}
+                          onCompleted={() => refetch()}
                           trigger={
                             <Button
                               variant="ghost"

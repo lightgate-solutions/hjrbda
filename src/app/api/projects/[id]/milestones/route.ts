@@ -1,19 +1,59 @@
 import { db } from "@/db";
-import { milestones } from "@/db/schema";
+import { milestones, projects, projectMembers } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
-import { getProject } from "@/actions/projects";
+import { getUser } from "@/actions/auth/dal";
+
+async function checkProjectAccess(
+  projectId: number,
+  userId: number,
+  isAdmin: boolean,
+) {
+  if (isAdmin) return true;
+
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.id, projectId),
+    with: {
+      members: {
+        where: eq(projectMembers.employeeId, userId),
+      },
+    },
+  });
+
+  if (!project) return false;
+
+  return (
+    project.creatorId === userId ||
+    project.supervisorId === userId ||
+    project.members.length > 0
+  );
+}
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const rows = await db
       .select()
@@ -24,10 +64,7 @@ export async function GET(
     console.error("Error fetching milestones:", error);
     const message =
       error instanceof Error ? error.message : "Failed to fetch milestones";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -36,11 +73,26 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const body = await request.json();
     const { title, description, dueDate } = body ?? {};
@@ -61,10 +113,7 @@ export async function POST(
     console.error("Error creating milestone:", error);
     const message =
       error instanceof Error ? error.message : "Failed to create milestone";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -73,11 +122,26 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const body = await request.json();
     const {
@@ -109,10 +173,7 @@ export async function PUT(
     console.error("Error updating milestone:", error);
     const message =
       error instanceof Error ? error.message : "Failed to update milestone";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -121,11 +182,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const body = await request.json();
     const { id: milestoneId } = body ?? {};
@@ -144,9 +220,6 @@ export async function DELETE(
     console.error("Error deleting milestone:", error);
     const message =
       error instanceof Error ? error.message : "Failed to delete milestone";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

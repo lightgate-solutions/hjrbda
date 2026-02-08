@@ -16,8 +16,8 @@ type Project = {
   description: string | null;
   location: string | null;
   status: string;
-  budgetPlanned: number;
-  budgetActual: number;
+  budgetPlanned: number | null;
+  budgetActual: number | null;
   supervisorId: number | null;
   supervisor?: { name: string; email: string } | null;
   contractorId: number | null;

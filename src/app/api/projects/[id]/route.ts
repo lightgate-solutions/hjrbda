@@ -1,36 +1,88 @@
 import { db } from "@/db";
-import { employees, projects } from "@/db/schema";
+import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
+import { getUser } from "@/actions/auth/dal";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: projectId } = await params;
     const id = Number(projectId);
-    const [row] = await db
-      .select({
-        id: projects.id,
-        name: projects.name,
-        code: projects.code,
-        description: projects.description,
-        location: projects.location,
-        budgetPlanned: projects.budgetPlanned,
-        budgetActual: projects.budgetActual,
-        supervisorId: projects.supervisorId,
-        createdAt: projects.createdAt,
-        updatedAt: projects.updatedAt,
-        supervisorName: employees.name,
-        supervisorEmail: employees.email,
-      })
-      .from(projects)
-      .leftJoin(employees, eq(employees.id, projects.supervisorId))
-      .where(eq(projects.id, id))
-      .limit(1);
-    if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json({ project: row });
+
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, id),
+      with: {
+        supervisor: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            department: true,
+          },
+        },
+        contractor: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        creator: {
+          columns: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        members: {
+          with: {
+            employee: {
+              columns: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                department: true,
+              },
+            },
+          },
+        },
+        milestones: true,
+      },
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Check access control
+    const hasAccess =
+      isAdmin ||
+      project.creatorId === user.id ||
+      project.supervisorId === user.id ||
+      project.members.some((m) => m.employeeId === user.id);
+
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
+
+    return NextResponse.json({ project });
   } catch (error) {
     console.error("Error fetching project:", error);
     return NextResponse.json(
@@ -45,6 +97,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: projectId } = await params;
     const id = Number(projectId);
     const body = await request.json();
@@ -93,6 +150,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: projectId } = await params;
     const id = Number(projectId);
     const [deleted] = await db

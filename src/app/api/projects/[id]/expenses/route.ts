@@ -1,21 +1,60 @@
 import { db } from "@/db";
-import { expenses, projects } from "@/db/schema";
+import { expenses, projects, projectMembers } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { createNotification } from "@/actions/notification/notification";
 import { getUser } from "@/actions/auth/dal";
-import { getProject } from "@/actions/projects";
+
+async function checkProjectAccess(
+  projectId: number,
+  userId: number,
+  isAdmin: boolean,
+) {
+  if (isAdmin) return true;
+
+  const project = await db.query.projects.findFirst({
+    where: eq(projects.id, projectId),
+    with: {
+      members: {
+        where: eq(projectMembers.employeeId, userId),
+      },
+    },
+  });
+
+  if (!project) return false;
+
+  return (
+    project.creatorId === userId ||
+    project.supervisorId === userId ||
+    project.members.length > 0
+  );
+}
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const rows = await db
       .select()
@@ -26,10 +65,7 @@ export async function GET(
     console.error("Error fetching expenses:", error);
     const message =
       error instanceof Error ? error.message : "Failed to fetch expenses";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -38,21 +74,31 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const body = await request.json();
     const { title, amount, spentAt, notes } = body ?? {};
     if (!title)
       return NextResponse.json({ error: "title is required" }, { status: 400 });
-
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const [created] = await db
       .insert(expenses)
@@ -91,10 +137,7 @@ export async function POST(
     console.error("Error creating expense:", error);
     const message =
       error instanceof Error ? error.message : "Failed to create expense";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -103,21 +146,31 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const body = await request.json();
     const { id: expenseId, title, amount, spentAt, notes } = body ?? {};
     if (!expenseId)
       return NextResponse.json({ error: "id is required" }, { status: 400 });
-
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Get expense details before update
     const [existingExpense] = await db
@@ -173,10 +226,7 @@ export async function PUT(
     console.error("Error updating expense:", error);
     const message =
       error instanceof Error ? error.message : "Failed to update expense";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -185,21 +235,31 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
     const projectId = Number(id);
 
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
     // Check access
-    await getProject(projectId);
+    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "You do not have access to this project" },
+        { status: 403 },
+      );
+    }
 
     const body = await request.json();
     const { id: expenseId } = body ?? {};
     if (!expenseId)
       return NextResponse.json({ error: "id is required" }, { status: 400 });
-
-    const user = await getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     // Get expense details before deletion
     const [expenseToDelete] = await db
@@ -248,9 +308,6 @@ export async function DELETE(
     console.error("Error deleting expense:", error);
     const message =
       error instanceof Error ? error.message : "Failed to delete expense";
-    return NextResponse.json(
-      { error: message },
-      { status: message.includes("access") ? 403 : 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

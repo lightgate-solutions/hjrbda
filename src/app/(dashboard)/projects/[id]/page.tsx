@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, use } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,10 @@ import {
   Download,
 } from "lucide-react";
 import { ProjectHeader } from "@/components/projects/project-header";
-import { getProject } from "@/actions/projects";
-import { getUser } from "@/actions/auth/dal";
 import { toast } from "sonner";
 import { ProjectsPageSkeleton } from "@/components/skeletons";
+import { useProject, useProjectExpenses } from "@/hooks/projects";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 type Milestone = {
   id: number;
@@ -35,7 +35,7 @@ type Milestone = {
   title: string;
   description: string | null;
   dueDate: Date | string | null;
-  completed: number;
+  completed: boolean;
 };
 
 type ProjectMember = {
@@ -52,8 +52,8 @@ type Project = {
   description: string | null;
   location: string | null;
   status: string;
-  budgetPlanned: number;
-  budgetActual: number;
+  budgetPlanned: number | null;
+  budgetActual: number | null;
   supervisorId: number | null;
   supervisor?: { name: string; email: string } | null;
   contractorId: number | null;
@@ -86,48 +86,39 @@ export default function ProjectDetailPage({
   const { id } = use(params);
   const projectId = Number(id);
   const router = useRouter();
-  const [project, setProject] = useState<Project | null>(null);
-  const [currentUser, setCurrentUser] = useState<{
-    id: number;
-    role?: string | null;
-    department?: string | null;
-    isManager?: boolean | null;
-  } | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(
     null,
   );
+  const [activeTab, setActiveTab] = useState("milestones");
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [pData, uData] = await Promise.all([
-        getProject(projectId),
-        getUser(),
-      ]);
-      setProject(pData);
-      setCurrentUser(uData);
-    } catch (error) {
-      console.error("Error loading project:", error);
-      // If unauthorized, redirect or show error
-      if (error instanceof Error && error.message.includes("access")) {
-        router.push("/unauthorized");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId, router]);
+  // Fetch current user using React Query (GET instead of POST)
+  const { data: currentUser } = useCurrentUser();
 
+  // Fetch project using React Query
+  const {
+    data: project,
+    isLoading,
+    refetch: refetchProject,
+  } = useProject(projectId);
+
+  // Fetch expenses only when expenses tab is active
+  const { data: expenses = [], refetch: refetchExpenses } = useProjectExpenses(
+    projectId,
+    activeTab === "expenses",
+  );
+
+  // Handle unauthorized access
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!isLoading && !project) {
+      router.push("/unauthorized");
+    }
+  }, [project, isLoading, router]);
 
   const milestones = project?.milestones ?? [];
-  const expenses = project?.expenses ?? [];
 
   const progress = useMemo(() => {
     if (!milestones.length) return 0;
@@ -153,28 +144,42 @@ export default function ProjectDetailPage({
 
   async function saveMilestone() {
     if (!title || !dueDate) return;
-    if (editingMilestone?.id) {
-      await fetch(`/api/projects/${projectId}/milestones`, {
-        method: "PUT",
-        body: JSON.stringify({
-          id: editingMilestone.id,
-          title,
-          description,
-          dueDate,
-        }),
-      });
-    } else {
-      await fetch(`/api/projects/${projectId}/milestones`, {
-        method: "POST",
-        body: JSON.stringify({ title, description, dueDate }),
-      });
+    try {
+      const response = editingMilestone?.id
+        ? await fetch(`/api/projects/${projectId}/milestones`, {
+            method: "PUT",
+            body: JSON.stringify({
+              id: editingMilestone.id,
+              title,
+              description,
+              dueDate,
+            }),
+          })
+        : await fetch(`/api/projects/${projectId}/milestones`, {
+            method: "POST",
+            body: JSON.stringify({ title, description, dueDate }),
+          });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save milestone");
+      }
+
+      setTitle("");
+      setDescription("");
+      setDueDate("");
+      setEditingMilestone(null);
+      setOpen(false);
+      refetchProject();
+      toast.success(
+        editingMilestone ? "Milestone updated" : "Milestone created",
+      );
+    } catch (error) {
+      console.error("Error saving milestone:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save milestone",
+      );
     }
-    setTitle("");
-    setDescription("");
-    setDueDate("");
-    setEditingMilestone(null);
-    setOpen(false);
-    load();
   }
 
   function openNewMilestone() {
@@ -194,19 +199,48 @@ export default function ProjectDetailPage({
   }
 
   async function deleteMilestone(m: Milestone) {
-    await fetch(`/api/projects/${projectId}/milestones`, {
-      method: "DELETE",
-      body: JSON.stringify({ id: m.id }),
-    });
-    load();
+    if (!confirm("Are you sure you want to delete this milestone?")) return;
+    try {
+      const response = await fetch(`/api/projects/${projectId}/milestones`, {
+        method: "DELETE",
+        body: JSON.stringify({ id: m.id }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete milestone");
+      }
+
+      refetchProject();
+      toast.success("Milestone deleted");
+    } catch (error) {
+      console.error("Error deleting milestone:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete milestone",
+      );
+    }
   }
 
   async function toggleMilestone(m: Milestone) {
-    await fetch(`/api/projects/${projectId}/milestones`, {
-      method: "PUT",
-      body: JSON.stringify({ id: m.id, completed: m.completed ? 0 : 1 }),
-    });
-    load();
+    try {
+      const response = await fetch(`/api/projects/${projectId}/milestones`, {
+        method: "PUT",
+        body: JSON.stringify({ id: m.id, completed: m.completed ? 0 : 1 }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update milestone");
+      }
+
+      refetchProject();
+      toast.success(m.completed ? "Milestone reopened" : "Milestone completed");
+    } catch (error) {
+      console.error("Error toggling milestone:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update milestone",
+      );
+    }
   }
 
   // Expenses
@@ -244,27 +278,54 @@ export default function ProjectDetailPage({
       spentAt: eDate || null,
       notes: eNotes || null,
     };
-    if (editingExpense?.id) {
-      await fetch(`/api/projects/${projectId}/expenses`, {
-        method: "PUT",
-        body: JSON.stringify({ id: editingExpense.id, ...payload }),
-      });
-    } else {
-      await fetch(`/api/projects/${projectId}/expenses`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+    try {
+      const response = editingExpense?.id
+        ? await fetch(`/api/projects/${projectId}/expenses`, {
+            method: "PUT",
+            body: JSON.stringify({ id: editingExpense.id, ...payload }),
+          })
+        : await fetch(`/api/projects/${projectId}/expenses`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save expense");
+      }
+
+      setEOpen(false);
+      refetchExpenses();
+      toast.success(editingExpense ? "Expense updated" : "Expense created");
+    } catch (error) {
+      console.error("Error saving expense:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save expense",
+      );
     }
-    setEOpen(false);
-    load();
   }
 
   async function deleteExpense(exp: Expense) {
-    await fetch(`/api/projects/${projectId}/expenses`, {
-      method: "DELETE",
-      body: JSON.stringify({ id: exp.id }),
-    });
-    load();
+    if (!confirm("Are you sure you want to delete this expense?")) return;
+    try {
+      const response = await fetch(`/api/projects/${projectId}/expenses`, {
+        method: "DELETE",
+        body: JSON.stringify({ id: exp.id }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete expense");
+      }
+
+      refetchExpenses();
+      toast.success("Expense deleted");
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete expense",
+      );
+    }
   }
 
   // Export functionality
@@ -304,9 +365,7 @@ export default function ProjectDetailPage({
     }
   }
 
-  const [activeTab, setActiveTab] = useState("milestones");
-
-  if (loading) {
+  if (isLoading) {
     return <ProjectsPageSkeleton />;
   }
 

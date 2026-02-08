@@ -1,3 +1,5 @@
+"use client";
+
 import { ProjectsTable } from "@/components/projects/projects-table";
 import { ProjectsCards } from "@/components/projects/projects-cards";
 import { BackButton } from "@/components/ui/back-button";
