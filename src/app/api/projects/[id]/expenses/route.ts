@@ -22,11 +22,13 @@ export async function GET(
       .from(expenses)
       .where(eq(expenses.projectId, projectId));
     return NextResponse.json({ expenses: rows });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching expenses:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch expenses";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch expenses" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }
@@ -85,11 +87,13 @@ export async function POST(
     }
 
     return NextResponse.json({ expense: created }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating expense:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to create expense";
     return NextResponse.json(
-      { error: error.message || "Failed to create expense" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }
@@ -165,11 +169,13 @@ export async function PUT(
     }
 
     return NextResponse.json({ expense: updated });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating expense:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to update expense";
     return NextResponse.json(
-      { error: error.message || "Failed to update expense" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }
@@ -238,11 +244,13 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting expense:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to delete expense";
     return NextResponse.json(
-      { error: error.message || "Failed to delete expense" },
-      { status: error.message?.includes("access") ? 403 : 500 },
+      { error: message },
+      { status: message.includes("access") ? 403 : 500 },
     );
   }
 }

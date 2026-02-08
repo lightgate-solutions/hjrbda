@@ -1,7 +1,6 @@
 import { getUser } from "@/actions/auth/dal";
 import AdminDashboard from "@/components/dashboard/AdminDashboard";
 import HrDashboard from "@/components/dashboard/HrDashboard";
-import FinanceDashboard from "@/components/dashboard/FinanceDashboard";
 import StaffDashboard from "@/components/dashboard/StaffDashboard";
 import ManagerDashboard from "@/components/dashboard/ManagerDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +52,7 @@ export default async function DashboardPage() {
     case "finance":
     case "accounting":
     case "accountant":
-      return <FinanceDashboard />;
+      return <StaffDashboard />;
 
     default:
       // Default fallback: Show staff dashboard for any unrecognized role

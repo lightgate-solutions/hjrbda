@@ -4,46 +4,24 @@ import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { createObjectCsvStringifier } from "csv-writer";
 import { employees, employeesDocuments, employeesBank } from "@/db/schema/hr";
-import {
-  salaryStructure,
-  allowances,
-  deductions,
-  payrun,
-  payrunItems,
-} from "@/db/schema/payroll";
-import { tasks, taskSubmissions } from "@/db/schema/tasks";
 import { projects } from "@/db/schema/projects";
 import { document, documentLogs } from "@/db/schema/documents";
 import { newsArticles } from "@/db/schema/news";
 import { user, session } from "@/db/schema/auth";
-import { companyExpenses, balanceTransactions } from "@/db/schema/finance";
-import { eq, and, gte, lte, inArray, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 type ExportDataset =
   | "employees"
-  | "salary-structures"
-  | "allowances"
-  | "deductions"
-  | "payruns"
-  | "payrun-items"
   | "news"
   | "projects"
   | "projects-pending"
   | "projects-in-progress"
   | "projects-completed"
-  | "tasks"
-  | "tasks-pending"
-  | "tasks-in-progress"
-  | "tasks-completed"
-  | "tasks-overdue"
-  | "task-submissions"
   | "user-sessions"
   | "users"
   | "documents"
   | "document-logs"
-  | "company-expenses"
-  | "balance-transactions"
   | "employee-banks"
   | "employee-documents";
 
@@ -122,15 +100,9 @@ async function fetchDataset(
 ) {
   // Create aliases for joins
   const manager = alias(employees, "manager");
-  const approver = alias(employees, "approver");
-  const assignedToEmployee = alias(employees, "assignedTo");
-  const assignedByEmployee = alias(employees, "assignedBy");
-  const submitter = alias(employees, "submitter");
+  const _approver = alias(employees, "approver");
   const supervisor = alias(employees, "supervisor");
   const uploader = alias(employees, "uploader");
-  const generatedByUser = alias(user, "generatedBy");
-  const approvedByUser = alias(user, "approvedBy");
-
   switch (dataset) {
     case "employees": {
       const data = await db
@@ -177,224 +149,6 @@ async function fetchDataset(
           { id: "createdAt", title: "Created At" },
         ],
         filename: "employees_export",
-      };
-    }
-
-    case "salary-structures": {
-      const data = await db
-        .select({
-          name: salaryStructure.name,
-          baseSalary: salaryStructure.baseSalary,
-          description: salaryStructure.description,
-          active: salaryStructure.active,
-          employeeCount: salaryStructure.employeeCount,
-          createdAt: salaryStructure.createdAt,
-        })
-        .from(salaryStructure)
-        .orderBy(desc(salaryStructure.createdAt));
-
-      return {
-        data: data.map((s) => ({
-          ...s,
-          baseSalary: s.baseSalary?.toString(),
-          active: s.active ? "Yes" : "No",
-          createdAt: s.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "name", title: "Name" },
-          { id: "baseSalary", title: "Base Salary" },
-          { id: "description", title: "Description" },
-          { id: "active", title: "Active" },
-          { id: "employeeCount", title: "Employee Count" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "salary_structures_export",
-      };
-    }
-
-    case "allowances": {
-      const data = await db
-        .select({
-          name: allowances.name,
-          type: allowances.type,
-          percentage: allowances.percentage,
-          amount: allowances.amount,
-          taxable: allowances.taxable,
-          taxPercentage: allowances.taxPercentage,
-          description: allowances.description,
-          createdAt: allowances.createdAt,
-        })
-        .from(allowances)
-        .orderBy(desc(allowances.createdAt));
-
-      return {
-        data: data.map((a) => ({
-          ...a,
-          amount: a.amount?.toString(),
-          taxable: a.taxable ? "Yes" : "No",
-          createdAt: a.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "name", title: "Name" },
-          { id: "type", title: "Type" },
-          { id: "percentage", title: "Percentage" },
-          { id: "amount", title: "Amount" },
-          { id: "taxable", title: "Taxable" },
-          { id: "taxPercentage", title: "Tax Percentage" },
-          { id: "description", title: "Description" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "allowances_export",
-      };
-    }
-
-    case "deductions": {
-      const data = await db
-        .select({
-          name: deductions.name,
-          type: deductions.type,
-          percentage: deductions.percentage,
-          amount: deductions.amount,
-          createdAt: deductions.createdAt,
-        })
-        .from(deductions)
-        .orderBy(desc(deductions.createdAt));
-
-      return {
-        data: data.map((d) => ({
-          ...d,
-          amount: d.amount?.toString(),
-          createdAt: d.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "name", title: "Name" },
-          { id: "type", title: "Type" },
-          { id: "percentage", title: "Percentage" },
-          { id: "amount", title: "Amount" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "deductions_export",
-      };
-    }
-
-    case "payruns": {
-      const baseQuery = db
-        .select({
-          name: payrun.name,
-          type: payrun.type,
-          month: payrun.month,
-          year: payrun.year,
-          totalEmployees: payrun.totalEmployees,
-          totalGrossPay: payrun.totalGrossPay,
-          totalDeductions: payrun.totalDeductions,
-          totalNetPay: payrun.totalNetPay,
-          status: payrun.status,
-          generatedBy: generatedByUser.name,
-          approvedBy: approvedByUser.name,
-          createdAt: payrun.createdAt,
-          approvedAt: payrun.approvedAt,
-        })
-        .from(payrun)
-        .leftJoin(generatedByUser, eq(payrun.generatedBy, generatedByUser.id))
-        .leftJoin(approvedByUser, eq(payrun.approvedBy, approvedByUser.id));
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(payrun.createdAt, dateFilters.start));
-        conditions.push(lte(payrun.createdAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(payrun.createdAt));
-
-      return {
-        data: data.map((p) => ({
-          ...p,
-          totalGrossPay: p.totalGrossPay?.toString(),
-          totalDeductions: p.totalDeductions?.toString(),
-          totalNetPay: p.totalNetPay?.toString(),
-          createdAt: p.createdAt?.toISOString().split("T")[0],
-          approvedAt: p.approvedAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "name", title: "Name" },
-          { id: "type", title: "Type" },
-          { id: "month", title: "Month" },
-          { id: "year", title: "Year" },
-          { id: "totalEmployees", title: "Total Employees" },
-          { id: "totalGrossPay", title: "Total Gross Pay" },
-          { id: "totalDeductions", title: "Total Deductions" },
-          { id: "totalNetPay", title: "Total Net Pay" },
-          { id: "status", title: "Status" },
-          { id: "generatedBy", title: "Generated By" },
-          { id: "approvedBy", title: "Approved By" },
-          { id: "createdAt", title: "Created At" },
-          { id: "approvedAt", title: "Approved At" },
-        ],
-        filename: "payruns_export",
-      };
-    }
-
-    case "payrun-items": {
-      const baseQuery = db
-        .select({
-          payrunName: payrun.name,
-          employeeName: employees.name,
-          type: payrunItems.type,
-          baseSalary: payrunItems.baseSalary,
-          totalAllowances: payrunItems.totalAllowances,
-          totalDeductions: payrunItems.totalDeductions,
-          grossPay: payrunItems.grossPay,
-          taxableIncome: payrunItems.taxableIncome,
-          totalTaxes: payrunItems.totalTaxes,
-          netPay: payrunItems.netPay,
-          status: payrunItems.status,
-          createdAt: payrunItems.createdAt,
-        })
-        .from(payrunItems)
-        .leftJoin(payrun, eq(payrunItems.payrunId, payrun.id))
-        .leftJoin(employees, eq(payrunItems.employeeId, employees.id));
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(payrunItems.createdAt, dateFilters.start));
-        conditions.push(lte(payrunItems.createdAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(payrunItems.createdAt));
-
-      return {
-        data: data.map((pi) => ({
-          ...pi,
-          baseSalary: pi.baseSalary?.toString(),
-          totalAllowances: pi.totalAllowances?.toString(),
-          totalDeductions: pi.totalDeductions?.toString(),
-          grossPay: pi.grossPay?.toString(),
-          taxableIncome: pi.taxableIncome?.toString(),
-          totalTaxes: pi.totalTaxes?.toString(),
-          netPay: pi.netPay?.toString(),
-          createdAt: pi.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "payrunName", title: "Payrun" },
-          { id: "employeeName", title: "Employee" },
-          { id: "type", title: "Type" },
-          { id: "baseSalary", title: "Base Salary" },
-          { id: "totalAllowances", title: "Total Allowances" },
-          { id: "totalDeductions", title: "Total Deductions" },
-          { id: "grossPay", title: "Gross Pay" },
-          { id: "taxableIncome", title: "Taxable Income" },
-          { id: "totalTaxes", title: "Total Taxes" },
-          { id: "netPay", title: "Net Pay" },
-          { id: "status", title: "Status" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "payrun_items_export",
       };
     }
 
@@ -506,108 +260,6 @@ async function fetchDataset(
           { id: "createdAt", title: "Created At" },
         ],
         filename: `projects_${dataset.replace("projects-", "") || "all"}_export`,
-      };
-    }
-
-    case "tasks":
-    case "tasks-pending":
-    case "tasks-in-progress":
-    case "tasks-completed":
-    case "tasks-overdue": {
-      const baseQuery = db
-        .select({
-          title: tasks.title,
-          description: tasks.description,
-          assignedToName: assignedToEmployee.name,
-          assignedByName: assignedByEmployee.name,
-          status: tasks.status,
-          priority: tasks.priority,
-          dueDate: tasks.dueDate,
-          createdAt: tasks.createdAt,
-        })
-        .from(tasks)
-        .leftJoin(
-          assignedToEmployee,
-          eq(tasks.assignedTo, assignedToEmployee.id),
-        )
-        .leftJoin(
-          assignedByEmployee,
-          eq(tasks.assignedBy, assignedByEmployee.id),
-        );
-
-      const conditions = [];
-
-      if (dataset === "tasks-pending") {
-        conditions.push(eq(tasks.status, "Todo"));
-      } else if (dataset === "tasks-in-progress") {
-        conditions.push(eq(tasks.status, "In Progress"));
-      } else if (dataset === "tasks-completed") {
-        conditions.push(eq(tasks.status, "Completed"));
-      }
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(tasks.createdAt, dateFilters.start));
-        conditions.push(lte(tasks.createdAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(tasks.createdAt));
-
-      return {
-        data: data.map((t) => ({
-          ...t,
-          createdAt: t.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "title", title: "Title" },
-          { id: "description", title: "Description" },
-          { id: "assignedToName", title: "Assigned To" },
-          { id: "assignedByName", title: "Assigned By" },
-          { id: "status", title: "Status" },
-          { id: "priority", title: "Priority" },
-          { id: "dueDate", title: "Due Date" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: `tasks_${dataset.replace("tasks-", "") || "all"}_export`,
-      };
-    }
-
-    case "task-submissions": {
-      const baseQuery = db
-        .select({
-          taskTitle: tasks.title,
-          submittedByName: submitter.name,
-          submissionNote: taskSubmissions.submissionNote,
-          submittedAt: taskSubmissions.submittedAt,
-        })
-        .from(taskSubmissions)
-        .leftJoin(tasks, eq(taskSubmissions.taskId, tasks.id))
-        .leftJoin(submitter, eq(taskSubmissions.submittedBy, submitter.id));
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(taskSubmissions.submittedAt, dateFilters.start));
-        conditions.push(lte(taskSubmissions.submittedAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(taskSubmissions.submittedAt));
-
-      return {
-        data: data.map((ts) => ({
-          ...ts,
-          submittedAt: ts.submittedAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "taskTitle", title: "Task" },
-          { id: "submittedByName", title: "Submitted By" },
-          { id: "submissionNote", title: "Submission Note" },
-          { id: "submittedAt", title: "Submitted At" },
-        ],
-        filename: "task_submissions_export",
       };
     }
 
@@ -769,98 +421,6 @@ async function fetchDataset(
           { id: "createdAt", title: "Created At" },
         ],
         filename: "document_logs_export",
-      };
-    }
-
-    case "company-expenses": {
-      const baseQuery = db
-        .select({
-          title: companyExpenses.title,
-          description: companyExpenses.description,
-          amount: companyExpenses.amount,
-          category: companyExpenses.category,
-          expenseDate: companyExpenses.expenseDate,
-          createdAt: companyExpenses.createdAt,
-        })
-        .from(companyExpenses);
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(companyExpenses.expenseDate, dateFilters.start));
-        conditions.push(lte(companyExpenses.expenseDate, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(companyExpenses.expenseDate));
-
-      return {
-        data: data.map((ce) => ({
-          ...ce,
-          amount: ce.amount?.toString(),
-          expenseDate: ce.expenseDate?.toISOString().split("T")[0],
-          createdAt: ce.createdAt?.toISOString().split("T")[0],
-        })),
-        headers: [
-          { id: "title", title: "Title" },
-          { id: "description", title: "Description" },
-          { id: "amount", title: "Amount" },
-          { id: "category", title: "Category" },
-          { id: "expenseDate", title: "Expense Date" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "company_expenses_export",
-      };
-    }
-
-    case "balance-transactions": {
-      const transactionUser = alias(user, "transactionUser");
-      const baseQuery = db
-        .select({
-          userName: transactionUser.name,
-          amount: balanceTransactions.amount,
-          transactionType: balanceTransactions.transactionType,
-          description: balanceTransactions.description,
-          balanceBefore: balanceTransactions.balanceBefore,
-          balanceAfter: balanceTransactions.balanceAfter,
-          createdAt: balanceTransactions.createdAt,
-        })
-        .from(balanceTransactions)
-        .leftJoin(
-          transactionUser,
-          eq(balanceTransactions.userId, transactionUser.id),
-        );
-
-      const conditions = [];
-      if (dateFilters.start && dateFilters.end) {
-        conditions.push(gte(balanceTransactions.createdAt, dateFilters.start));
-        conditions.push(lte(balanceTransactions.createdAt, dateFilters.end));
-      }
-
-      const query =
-        conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery;
-
-      const data = await query.orderBy(desc(balanceTransactions.createdAt));
-
-      return {
-        data: data.map((bt) => ({
-          ...bt,
-          amount: bt.amount?.toString(),
-          balanceBefore: bt.balanceBefore?.toString(),
-          balanceAfter: bt.balanceAfter?.toString(),
-          createdAt: bt.createdAt?.toISOString(),
-        })),
-        headers: [
-          { id: "userName", title: "User" },
-          { id: "amount", title: "Amount" },
-          { id: "transactionType", title: "Transaction Type" },
-          { id: "description", title: "Description" },
-          { id: "balanceBefore", title: "Balance Before" },
-          { id: "balanceAfter", title: "Balance After" },
-          { id: "createdAt", title: "Created At" },
-        ],
-        filename: "balance_transactions_export",
       };
     }
 

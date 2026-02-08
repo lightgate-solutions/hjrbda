@@ -21,7 +21,7 @@ import {
 import { useState } from "react";
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { listContractors, deleteContractor } from "@/actions/contractors";
-import ContractorForm from "./contractor-form";
+import ContractorForm, { type ContractorRow } from "./contractor-form";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -40,9 +40,8 @@ export default function ContractorsTable() {
     queryFn: () => listContractors({ limit: 100 }),
   });
 
-  const [selectedContractor, setSelectedContractor] = useState<any | null>(
-    null,
-  );
+  const [selectedContractor, setSelectedContractor] =
+    useState<ContractorRow | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [contractorToDelete, setContractorToDelete] = useState<number | null>(
     null,

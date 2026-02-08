@@ -27,44 +27,18 @@ export async function GET() {
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
     // Aggregate activities from multiple sources
-    // We'll query each table and combine the results
-    const [
-      taskCreated,
-      taskUpdated,
-      docCreated,
-      docUpdated,
-      projCreated,
-      projUpdated,
-      messages,
-      submissions,
-      expenses,
-      payments,
-    ] = await Promise.all([
-      // Tasks created
-      db.execute(sql`
-        SELECT DATE(created_at)::text as activity_date, COUNT(*)::int as count
-        FROM tasks
-        WHERE created_at >= ${thirtyDaysAgo}
-        GROUP BY DATE(created_at)
-      `),
-      // Tasks updated (exclude same-day as created)
-      db.execute(sql`
-        SELECT DATE(updated_at)::text as activity_date, COUNT(*)::int as count
-        FROM tasks
-        WHERE updated_at >= ${thirtyDaysAgo}
-          AND DATE(updated_at) != DATE(created_at)
-        GROUP BY DATE(updated_at)
-      `),
-      // Documents created
-      db.execute(sql`
+    const [docCreated, docUpdated, projCreated, projUpdated, payments] =
+      await Promise.all([
+        // Documents created
+        db.execute(sql`
         SELECT DATE(created_at)::text as activity_date, COUNT(*)::int as count
         FROM document
         WHERE created_at >= ${thirtyDaysAgo}
           AND status = 'active'
         GROUP BY DATE(created_at)
       `),
-      // Documents updated (exclude same-day as created)
-      db.execute(sql`
+        // Documents updated (exclude same-day as created)
+        db.execute(sql`
         SELECT DATE(updated_at)::text as activity_date, COUNT(*)::int as count
         FROM document
         WHERE updated_at >= ${thirtyDaysAgo}
@@ -72,65 +46,38 @@ export async function GET() {
           AND status = 'active'
         GROUP BY DATE(updated_at)
       `),
-      // Projects created
-      db.execute(sql`
+        // Projects created
+        db.execute(sql`
         SELECT DATE(created_at)::text as activity_date, COUNT(*)::int as count
         FROM projects
         WHERE created_at >= ${thirtyDaysAgo}
         GROUP BY DATE(created_at)
       `),
-      // Projects updated (exclude same-day as created)
-      db.execute(sql`
+        // Projects updated (exclude same-day as created)
+        db.execute(sql`
         SELECT DATE(updated_at)::text as activity_date, COUNT(*)::int as count
         FROM projects
         WHERE updated_at >= ${thirtyDaysAgo}
           AND DATE(updated_at) != DATE(created_at)
         GROUP BY DATE(updated_at)
       `),
-      // Task messages
-      db.execute(sql`
-        SELECT DATE(created_at)::text as activity_date, COUNT(*)::int as count
-        FROM task_messages
-        WHERE created_at >= ${thirtyDaysAgo}
-        GROUP BY DATE(created_at)
-      `),
-      // Task submissions
-      db.execute(sql`
-        SELECT DATE(submitted_at)::text as activity_date, COUNT(*)::int as count
-        FROM task_submissions
-        WHERE submitted_at >= ${thirtyDaysAgo}
-        GROUP BY DATE(submitted_at)
-      `),
-      // Expenses
-      db.execute(sql`
-        SELECT DATE(created_at)::text as activity_date, COUNT(*)::int as count
-        FROM company_expenses
-        WHERE created_at >= ${thirtyDaysAgo}
-        GROUP BY DATE(created_at)
-      `),
-      // Payments
-      db.execute(sql`
+        // Payments
+        db.execute(sql`
         SELECT DATE(created_at)::text as activity_date, COUNT(*)::int as count
         FROM payments
         WHERE created_at >= ${thirtyDaysAgo}
         GROUP BY DATE(created_at)
       `),
-    ]);
+      ]);
 
     // Combine all activities into a map by date
     const activityMap = new Map<string, number>();
 
-    // Handle results - db.execute returns rows directly in node-postgres
     const allActivities = [
-      ...(Array.isArray(taskCreated) ? taskCreated : taskCreated.rows || []),
-      ...(Array.isArray(taskUpdated) ? taskUpdated : taskUpdated.rows || []),
       ...(Array.isArray(docCreated) ? docCreated : docCreated.rows || []),
       ...(Array.isArray(docUpdated) ? docUpdated : docUpdated.rows || []),
       ...(Array.isArray(projCreated) ? projCreated : projCreated.rows || []),
       ...(Array.isArray(projUpdated) ? projUpdated : projUpdated.rows || []),
-      ...(Array.isArray(messages) ? messages : messages.rows || []),
-      ...(Array.isArray(submissions) ? submissions : submissions.rows || []),
-      ...(Array.isArray(expenses) ? expenses : expenses.rows || []),
       ...(Array.isArray(payments) ? payments : payments.rows || []),
     ];
 

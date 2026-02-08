@@ -6,8 +6,5 @@ export * from "./documents";
 export * from "./notifications";
 export * from "./notification-preferences";
 export * from "./payments";
-export * from "./tasks";
-export * from "./finance";
-export * from "./payroll";
 export * from "./news";
 export * from "./bug-reports";
