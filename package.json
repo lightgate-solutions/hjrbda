@@ -9,7 +9,7 @@
     "lint": "biome check",
     "format": "biome format --write",
     "prepare": "husky",
-    "check": "pnpm exec biome check --write",
+    "check": "pnpm exec biome check --write --unsafe",
     "db:start": "docker compose up -d",
     "db:stop": "docker compose stop",
     "db:studio": "drizzle-kit studio ",

@@ -45,19 +45,31 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import {
   archiveDocumentAction,
   deleteDocumentAction,
-  getDocumentComments,
   addDocumentComment,
-  getDocumentVersions,
   deleteDocumentVersion,
-  getDocumentLogs,
-  searchEmployeesForShare,
-  getDocumentShares,
   addDocumentShare,
   removeDocumentShare,
-  getMyDocumentAccess,
   updateDocumentPublic,
   updateDepartmentAccess,
 } from "@/actions/documents/documents";
+import {
+  useDocumentComments,
+  useDocumentVersions,
+  useDocumentLogs,
+  useDocumentShares,
+  useDocumentAccess,
+  useSearchEmployees,
+} from "@/hooks/documents";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDebounce } from "use-debounce";
+import {
+  DocumentCommentsSkeleton,
+  DocumentVersionsSkeleton,
+  DocumentLogsSkeleton,
+  DocumentSharesSkeleton,
+} from "@/components/skeletons/documents";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { QueryError } from "@/components/query-error";
 import { Label } from "../ui/label";
 import { Separator } from "../ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -79,7 +91,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { Dropzone, type FileWithMetadata } from "../ui/dropzone";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { uploadNewDocumentVersion } from "@/actions/documents/upload";
 import { Spinner } from "../ui/spinner";
 import { Progress } from "../ui/progress";
@@ -117,7 +129,11 @@ export type DocumentType = {
 export default function SingleDocumentPage({ doc }: { doc: DocumentType }) {
   const pathname = usePathname();
 
-  return <DocumentPage doc={doc} pathname={pathname} />;
+  return (
+    <ErrorBoundary>
+      <DocumentPage doc={doc} pathname={pathname} />
+    </ErrorBoundary>
+  );
 }
 
 function DocumentPage({
@@ -133,30 +149,53 @@ function DocumentPage({
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState("overview");
-
-  const [comments, setComments] = useState<any[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
-
-  const [versions, setVersions] = useState<any[]>([]);
-  const [versionsLoading, setVersionsLoading] = useState(false);
-
-  const [logs, setLogs] = useState<any[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [myAccess, setMyAccess] = useState<{
-    level: "none" | "view" | "edit" | "manage";
-    isOwner: boolean;
-    isAdminDepartment?: boolean;
-  } | null>(null);
-
   const [shareEmail, setShareEmail] = useState("");
   const [shareLevel, setShareLevel] = useState<"view" | "edit" | "manage">(
     "view",
   );
-  const [shareSuggestions, setShareSuggestions] = useState<any[]>([]);
-  const [shareSuggestionsLoading, setShareSuggestionsLoading] = useState(false);
-  const [shares, setShares] = useState<any[]>([]);
-  const [sharesLoading, setSharesLoading] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // React Query hooks with conditional enabling based on active tab
+  const { data: myAccess, error: _accessError } = useDocumentAccess(doc.id);
+  const {
+    data: comments = [],
+    isLoading: commentsLoading,
+    error: commentsError,
+    refetch: refetchComments,
+  } = useDocumentComments(doc.id, activeTab === "comment");
+  const {
+    data: versions = [],
+    isLoading: versionsLoading,
+    error: versionsError,
+    refetch: refetchVersions,
+  } = useDocumentVersions(doc.id, activeTab === "versions");
+  const {
+    data: logs = [],
+    isLoading: logsLoading,
+    error: logsError,
+    refetch: refetchLogs,
+  } = useDocumentLogs(doc.id, activeTab === "history");
+  const {
+    data: shares = [],
+    isLoading: sharesLoading,
+    error: _sharesError,
+    refetch: _refetchShares,
+  } = useDocumentShares(
+    doc.id,
+    (myAccess?.isOwner || myAccess?.isAdminDepartment || false) &&
+      activeTab === "permissions",
+  );
+
+  // Debounced search for employee suggestions
+  const [debouncedSearchEmail] = useDebounce(shareEmail, 300);
+  const { data: shareSuggestions = [], isLoading: shareSuggestionsLoading } =
+    useSearchEmployees(
+      debouncedSearchEmail,
+      8,
+      debouncedSearchEmail.length >= 2,
+    );
 
   const [publicValue, setPublicValue] = useState(!!doc.public);
   const [pubUpdating, setPubUpdating] = useState(false);
@@ -170,72 +209,6 @@ function DocumentPage({
   );
   const [deptUpdating, setDeptUpdating] = useState(false);
 
-  async function loadComments() {
-    try {
-      setCommentsLoading(true);
-      const res = await getDocumentComments(doc.id);
-      if (res.success) {
-        setComments(res.success);
-      } else {
-        toast.error(res.error?.reason);
-      }
-    } finally {
-      setCommentsLoading(false);
-    }
-  }
-
-  async function loadVersions() {
-    try {
-      setVersionsLoading(true);
-      const res = await getDocumentVersions(doc.id);
-      if (res.success) {
-        setVersions(res.success);
-      } else {
-        toast.error(res.error?.reason);
-      }
-    } finally {
-      setVersionsLoading(false);
-    }
-  }
-
-  async function loadLogs() {
-    try {
-      setLogsLoading(true);
-      const res = await getDocumentLogs(doc.id);
-      if (res.success) {
-        setLogs(res.success);
-      } else {
-        toast.error(res.error?.reason);
-      }
-    } finally {
-      setLogsLoading(false);
-    }
-  }
-
-  async function loadMyAccess() {
-    const res = await getMyDocumentAccess(doc.id);
-    if (res.success) {
-      setMyAccess(res.success);
-    } else {
-      toast.error(res.error.reason);
-    }
-  }
-
-  useEffect(() => {
-    loadMyAccess();
-  }, []);
-
-  async function loadShares() {
-    try {
-      setSharesLoading(true);
-      const res = await getDocumentShares(doc.id);
-      if (res.success) setShares(res.success);
-      else if (res.error) toast.error(res.error.reason);
-    } finally {
-      setSharesLoading(false);
-    }
-  }
-
   async function handleShareAdd() {
     const email = shareEmail.trim();
     if (!email) return;
@@ -243,7 +216,10 @@ function DocumentPage({
     if (res.success) {
       toast.success(res.success.reason);
       setShareEmail("");
-      await loadShares();
+      // Invalidate shares query to refetch
+      await queryClient.invalidateQueries({
+        queryKey: ["document-shares", doc.id],
+      });
     } else {
       toast.error(res.error?.reason ?? "Failed to add share");
     }
@@ -253,41 +229,14 @@ function DocumentPage({
     const res = await removeDocumentShare(doc.id, userId);
     if (res.success) {
       toast.success(res.success.reason);
-      await loadShares();
+      // Invalidate shares query to refetch
+      await queryClient.invalidateQueries({
+        queryKey: ["document-shares", doc.id],
+      });
     } else {
       toast.error(res.error?.reason ?? "Failed to remove share");
     }
   }
-
-  useEffect(() => {
-    if (!shareEmail || shareEmail.length < 2) {
-      setShareSuggestions([]);
-      return;
-    }
-    let canceled = false;
-    setShareSuggestionsLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await searchEmployeesForShare(shareEmail);
-        if (!canceled) {
-          if (res.success) setShareSuggestions(res.success);
-          else setShareSuggestions([]);
-        }
-      } finally {
-        if (!canceled) setShareSuggestionsLoading(false);
-      }
-    }, 300);
-    return () => {
-      canceled = true;
-      clearTimeout(t);
-    };
-  }, [shareEmail]);
-
-  useEffect(() => {
-    if (activeTab === "comment") loadComments();
-    if (activeTab === "versions") loadVersions();
-    if (activeTab === "history") loadLogs();
-  }, [activeTab, doc.id]);
 
   async function handleAddComment() {
     const text = commentText.trim();
@@ -296,7 +245,10 @@ function DocumentPage({
     if (res.success) {
       setCommentText("");
       toast.success("Comment added");
-      await loadComments();
+      // Invalidate comments query to refetch
+      await queryClient.invalidateQueries({
+        queryKey: ["document-comments", doc.id],
+      });
       router.refresh();
     } else {
       toast.error(res.error?.reason ?? "Failed to add comment");
@@ -455,7 +407,7 @@ function DocumentPage({
               </div>
               <div className="text-muted-foreground text-sm">
                 {doc.fileSize} MB • Modified{" "}
-                {doc.updatedAt.toLocaleDateString()}
+                {new Date(doc.updatedAt).toLocaleDateString()}
               </div>
             </div>
           </div>
@@ -560,9 +512,7 @@ function DocumentPage({
                           Current shares
                         </div>
                         {sharesLoading ? (
-                          <div className="text-xs text-muted-foreground">
-                            Loading shares…
-                          </div>
+                          <DocumentSharesSkeleton />
                         ) : shares.length === 0 ? (
                           <div className="text-xs text-muted-foreground">
                             No shares yet.
@@ -816,9 +766,13 @@ function DocumentPage({
                   )}
                   <div className="space-y-4">
                     {commentsLoading ? (
-                      <div className="text-sm text-muted-foreground">
-                        Loading comments...
-                      </div>
+                      <DocumentCommentsSkeleton />
+                    ) : commentsError ? (
+                      <QueryError
+                        error={commentsError as Error}
+                        onRetry={() => refetchComments()}
+                        title="Failed to load comments"
+                      />
                     ) : comments.length === 0 ? (
                       <div className="text-sm text-muted-foreground">
                         No comments yet.
@@ -853,16 +807,21 @@ function DocumentPage({
                 </CardHeader>
                 <CardContent className="grid gap-6">
                   {versionsLoading ? (
-                    <div className="text-sm text-muted-foreground">
-                      Loading versions...
-                    </div>
+                    <DocumentVersionsSkeleton />
+                  ) : versionsError ? (
+                    <QueryError
+                      error={versionsError as Error}
+                      onRetry={() => refetchVersions()}
+                      title="Failed to load versions"
+                    />
                   ) : versions.length === 0 ? (
                     <div className="text-sm text-muted-foreground">
                       No previous versions.
                     </div>
                   ) : (
                     versions.map((v) => {
-                      const isCurrent = v.versionNumber === doc.currentVersion;
+                      const isCurrent =
+                        v.versionNumber === doc.currentVersion.toString();
                       return (
                         <div
                           key={v.id}
@@ -922,7 +881,9 @@ function DocumentPage({
                                 );
                                 if (res?.success) {
                                   toast.success(res.success.reason);
-                                  await loadVersions();
+                                  await queryClient.invalidateQueries({
+                                    queryKey: ["document-versions", doc.id],
+                                  });
                                   router.refresh();
                                 } else {
                                   toast.error(
@@ -961,8 +922,12 @@ function DocumentPage({
                       <Button
                         variant="outline"
                         onClick={async () => {
-                          await loadMyAccess();
-                          await loadShares();
+                          await queryClient.invalidateQueries({
+                            queryKey: ["document-access", doc.id],
+                          });
+                          await queryClient.invalidateQueries({
+                            queryKey: ["document-shares", doc.id],
+                          });
                         }}
                       >
                         Refresh
@@ -1162,16 +1127,16 @@ function DocumentPage({
                             variant="outline"
                             size="sm"
                             onClick={async () => {
-                              await loadShares();
+                              await queryClient.invalidateQueries({
+                                queryKey: ["document-shares", doc.id],
+                              });
                             }}
                           >
                             Refresh
                           </Button>
                         </div>
                         {sharesLoading ? (
-                          <div className="text-xs text-muted-foreground">
-                            Loading shares…
-                          </div>
+                          <DocumentSharesSkeleton />
                         ) : shares.length === 0 ? (
                           <div className="text-xs text-muted-foreground">
                             No shares yet.
@@ -1205,7 +1170,9 @@ function DocumentPage({
                                       );
                                       if (res.success) {
                                         toast.success("Share updated");
-                                        await loadShares();
+                                        await queryClient.invalidateQueries({
+                                          queryKey: ["document-shares", doc.id],
+                                        });
                                       } else {
                                         toast.error(
                                           res.error?.reason ??
@@ -1242,8 +1209,12 @@ function DocumentPage({
                       <Button
                         variant="outline"
                         onClick={async () => {
-                          await loadMyAccess();
-                          await loadShares();
+                          await queryClient.invalidateQueries({
+                            queryKey: ["document-access", doc.id],
+                          });
+                          await queryClient.invalidateQueries({
+                            queryKey: ["document-shares", doc.id],
+                          });
                         }}
                       >
                         Check my access
@@ -1264,9 +1235,13 @@ function DocumentPage({
                 </CardHeader>
                 <CardContent className="grid gap-6">
                   {logsLoading ? (
-                    <div className="text-sm text-muted-foreground">
-                      Loading history...
-                    </div>
+                    <DocumentLogsSkeleton />
+                  ) : logsError ? (
+                    <QueryError
+                      error={logsError as Error}
+                      onRetry={() => refetchLogs()}
+                      title="Failed to load history"
+                    />
                   ) : logs.length === 0 ? (
                     <div className="text-sm text-muted-foreground">
                       No history yet.
@@ -1352,7 +1327,7 @@ function DocumentsActions({
                 if (res.error) {
                   toast.error(res.error.reason);
                 } else {
-                  toast.error(res.success.reason);
+                  toast.success(res.success.reason);
                 }
               }}
             >
@@ -1365,7 +1340,7 @@ function DocumentsActions({
                 if (res.error) {
                   toast.error(res.error.reason);
                 } else {
-                  toast.error(res.success.reason);
+                  toast.success(res.success.reason);
                 }
               }}
             >

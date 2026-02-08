@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { getUser } from "@/actions/auth/dal";
-import { getMyArchivedDocuments } from "@/actions/documents/documents";
-import DocumentsViewWrapper from "@/components/documents/documents-view-wrapper";
 import { db } from "@/db";
 import { documentFolders } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
-import { Folder } from "lucide-react";
+import { ArrowLeft, FolderOpen, Archive } from "lucide-react";
 import { ViewToggle } from "@/components/documents/view-toggle/view-toggle";
+import { Button } from "@/components/ui/button";
+import ArchivedDocumentsSection from "@/components/documents/archived-documents-section";
 
 export default async function Page({
   searchParams,
@@ -70,9 +70,6 @@ export default async function Page({
   const fStart = fTotal > 0 ? (fPage - 1) * fPageSize + 1 : 0;
   const fEnd = fTotal > 0 ? Math.min(fPage * fPageSize, fTotal) : 0;
 
-  const documents = await getMyArchivedDocuments(dPage, dPageSize);
-  if (documents.error) return null;
-
   const buildQuery = ({
     nextFPage,
     nextDPage,
@@ -88,111 +85,153 @@ export default async function Page({
     return params.toString();
   };
 
+  const isEmpty = archivedFolders.length === 0;
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Archive</h1>
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pt-2">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/documents"
+            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label="Back to documents"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              Archive
+            </h1>
             <p className="text-sm text-muted-foreground">
-              View archived folders you created and archived documents you own
-              or have access to.
+              Archived folders and documents you own or have access to
             </p>
           </div>
         </div>
         <ViewToggle />
       </div>
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Archived Folders</h2>
-          <div className="text-xs text-muted-foreground">
-            {fTotal > 0
-              ? `Showing ${fStart}-${fEnd} of ${fTotal}`
-              : "No archived folders"}
+      {isEmpty ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="rounded-full bg-muted p-5 mb-5">
+            <Archive
+              size={28}
+              className="text-muted-foreground"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
           </div>
+          <h2 className="text-lg font-medium text-foreground mb-1">
+            Nothing archived
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            When you archive folders or documents, they will appear here
+          </p>
         </div>
-
-        {archivedFolders.length === 0 ? (
-          <div className="text-sm text-muted-foreground">
-            No archived folders found.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {archivedFolders.map((folder) => (
-              <div
-                key={folder.id}
-                className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-              >
-                <div className="h-24 flex items-center justify-center">
-                  <Folder size={56} className="text-slate-600" />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-foreground mb-1 truncate">
-                    {folder.name.charAt(0).toUpperCase() + folder.name.slice(1)}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Last Modified: {folder.updatedAt.toLocaleDateString()}
-                  </p>
+      ) : (
+        <>
+          {/* Archived Folders */}
+          {(archivedFolders.length > 0 || fTotal > 0) && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FolderOpen
+                    size={14}
+                    className="text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Archived Folders
+                  </h2>
+                  {fTotal > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      ({fStart}
+                      {"\u2013"}
+                      {fEnd} of {fTotal})
+                    </span>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
 
-        {fTotal > 0 && (
-          <div className="flex items-center justify-between">
-            <Link
-              className={`text-sm px-3 py-2 rounded border ${
-                fPage <= 1
-                  ? "pointer-events-none opacity-50"
-                  : "hover:bg-accent"
-              }`}
-              href={`/documents/archive?${buildQuery({ nextFPage: fPage - 1 })}`}
-              aria-disabled={fPage <= 1}
-            >
-              Previous
-            </Link>
-            <span className="text-xs text-muted-foreground">
-              Page {fPage} of {fTotalPages}
-            </span>
-            <Link
-              className={`text-sm px-3 py-2 rounded border ${
-                !fHasMore ? "pointer-events-none opacity-50" : "hover:bg-accent"
-              }`}
-              href={`/documents/archive?${buildQuery({ nextFPage: fPage + 1 })}`}
-              aria-disabled={!fHasMore}
-            >
-              Next
-            </Link>
-          </div>
-        )}
-      </section>
+              {archivedFolders.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  No archived folders
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                  {archivedFolders.map((folder) => (
+                    <div
+                      key={folder.id}
+                      className="flex flex-col rounded-xl border border-border bg-card p-4 opacity-75"
+                    >
+                      <div className="rounded-lg bg-muted p-2.5 w-fit mb-3">
+                        <FolderOpen
+                          size={20}
+                          className="text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <h3 className="text-sm font-medium text-foreground truncate capitalize">
+                        {folder.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Archived {folder.updatedAt.toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Archived Documents</h2>
-          <div className="text-xs text-muted-foreground">
-            {documents.success.total > 0
-              ? `Showing ${(documents.success.page - 1) * documents.success.pageSize + 1}-${Math.min(
-                  documents.success.page * documents.success.pageSize,
-                  documents.success.total,
-                )} of ${documents.success.total}`
-              : "No archived documents"}
-          </div>
-        </div>
+              {fTotal > fPageSize && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-xs text-muted-foreground">
+                    Page {fPage} of {fTotalPages}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      asChild
+                      disabled={fPage <= 1}
+                    >
+                      <Link
+                        href={`/documents/archive?${buildQuery({ nextFPage: fPage - 1 })}`}
+                        aria-disabled={fPage <= 1}
+                        className={
+                          fPage <= 1 ? "pointer-events-none opacity-50" : ""
+                        }
+                      >
+                        Previous
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      asChild
+                      disabled={!fHasMore}
+                    >
+                      <Link
+                        href={`/documents/archive?${buildQuery({ nextFPage: fPage + 1 })}`}
+                        aria-disabled={!fHasMore}
+                        className={
+                          !fHasMore ? "pointer-events-none opacity-50" : ""
+                        }
+                      >
+                        Next
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
-        <DocumentsViewWrapper
-          documents={documents.success.docs}
-          paging={{
-            page: documents.success.page,
-            pageSize: documents.success.pageSize,
-            total: documents.success.total,
-            totalPages: documents.success.totalPages,
-            hasMore: documents.success.hasMore,
-          }}
-        />
-      </section>
+          {/* Archived Documents */}
+          <ArchivedDocumentsSection page={dPage} pageSize={dPageSize} />
+        </>
+      )}
     </div>
   );
 }

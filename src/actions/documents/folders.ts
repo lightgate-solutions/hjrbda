@@ -202,7 +202,15 @@ export async function deleteFolder(folderId: number, pathname: string) {
 
       async function getAllSubfolderIds(
         currentFolderId: number,
+        depth = 0,
       ): Promise<number[]> {
+        const maxDepth = 50;
+        if (depth >= maxDepth) {
+          throw new Error(
+            `Maximum folder nesting depth of ${maxDepth} exceeded. Cannot process folder with deeply nested structure.`,
+          );
+        }
+
         const subFolders = await tx
           .select({ id: documentFolders.id })
           .from(documentFolders)
@@ -210,13 +218,16 @@ export async function deleteFolder(folderId: number, pathname: string) {
 
         const subIds = subFolders.map((f) => f.id);
         for (const subId of subIds) {
-          const nested = await getAllSubfolderIds(subId);
+          const nested = await getAllSubfolderIds(subId, depth + 1);
           subIds.push(...nested);
         }
         return subIds;
       }
 
-      const allFolderIds = [folderId, ...(await getAllSubfolderIds(folderId))];
+      const allFolderIds = [
+        folderId,
+        ...(await getAllSubfolderIds(folderId, 0)),
+      ];
 
       const docs = await tx
         .select({ id: document.id })
@@ -301,7 +312,15 @@ export async function archiveFolder(folderId: number, pathname: string) {
 
       async function getAllSubfolderIds(
         currentFolderId: number,
+        depth = 0,
       ): Promise<number[]> {
+        const maxDepth = 50;
+        if (depth >= maxDepth) {
+          throw new Error(
+            `Maximum folder nesting depth of ${maxDepth} exceeded. Cannot process folder with deeply nested structure.`,
+          );
+        }
+
         const subFolders = await tx
           .select({ id: documentFolders.id })
           .from(documentFolders)
@@ -309,13 +328,16 @@ export async function archiveFolder(folderId: number, pathname: string) {
 
         const subIds = subFolders.map((f) => f.id);
         for (const subId of subIds) {
-          const nested = await getAllSubfolderIds(subId);
+          const nested = await getAllSubfolderIds(subId, depth + 1);
           subIds.push(...nested);
         }
         return subIds;
       }
 
-      const allFolderIds = [folderId, ...(await getAllSubfolderIds(folderId))];
+      const allFolderIds = [
+        folderId,
+        ...(await getAllSubfolderIds(folderId, 0)),
+      ];
 
       const docs = await tx
         .select({ id: document.id })

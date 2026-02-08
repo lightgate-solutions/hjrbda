@@ -12,8 +12,43 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "HJRBDA",
-  description: "HJRBDA Management System",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://hjrbda.com",
+  ),
+  title: "HJRBDA Project Management System",
+  description: "HJRBDA Project Management System",
+  icons: {
+    icon: [
+      {
+        url: "/icon.png",
+        media: "(prefers-color-scheme: light)",
+      },
+    ],
+    apple: [
+      {
+        url: "/logo.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_NG",
+    url: "/",
+    siteName: "HJRBDA",
+    title: "HJRBDA - A Project Management Software",
+    description: "Manage multiple projects in realtime with collaborations.",
+    images: [
+      {
+        url: "/logo.png",
+        width: 2048,
+        height: 2048,
+        alt: "HJRBDA Logo",
+        type: "image/png",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({

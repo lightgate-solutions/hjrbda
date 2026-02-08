@@ -1,50 +1,86 @@
-import { getUser } from "@/actions/auth/dal";
-import { getAllAccessibleDocuments } from "@/actions/documents/documents";
+"use client";
+
+import { useAllAccessibleDocuments } from "@/hooks/documents";
 import DocumentsViewWrapper from "@/components/documents/documents-view-wrapper";
 import { ViewToggle } from "@/components/documents/view-toggle/view-toggle";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
+import { QueryError } from "@/components/query-error";
+import { ErrorBoundary } from "@/components/error-boundary";
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const sp = await searchParams;
-  const pageParam = Array.isArray(sp?.page) ? sp?.page[0] : sp?.page;
-  const pageSizeParam = Array.isArray(sp?.pageSize)
-    ? sp?.pageSize[0]
-    : sp?.pageSize;
+export default function Page() {
+  const searchParams = useSearchParams();
+  const pageParam = searchParams.get("page");
+  const pageSizeParam = searchParams.get("pageSize");
   const page = Number(pageParam) > 0 ? Number(pageParam) : 1;
   const pageSize = Number(pageSizeParam) > 0 ? Number(pageSizeParam) : 20;
 
-  const user = await getUser();
-  if (!user) return null;
-
-  const documents = await getAllAccessibleDocuments(page, pageSize);
-  if (documents.error) return null;
+  const {
+    data: documentsData,
+    isLoading,
+    error,
+    refetch,
+  } = useAllAccessibleDocuments(page, pageSize);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">All Documents</h1>
-            <p className="text-sm text-muted-foreground">
-              A flat list of all documents you own or have access to.
-            </p>
+    <ErrorBoundary>
+      <div className="flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pt-2">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/documents"
+              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              aria-label="Back to documents"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                All Documents
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                All documents you own or have access to
+              </p>
+            </div>
           </div>
+          <ViewToggle />
         </div>
-        <ViewToggle />
+
+        {/* Documents */}
+        {isLoading ? (
+          <AllDocumentsSkeleton />
+        ) : error ? (
+          <QueryError
+            error={error as Error}
+            onRetry={() => refetch()}
+            title="Failed to load documents"
+          />
+        ) : (
+          <DocumentsViewWrapper
+            documents={documentsData?.docs ?? []}
+            paging={{
+              page: documentsData?.page ?? 1,
+              pageSize: documentsData?.pageSize ?? 20,
+              total: documentsData?.total ?? 0,
+              totalPages: documentsData?.totalPages ?? 1,
+              hasMore: documentsData?.hasMore ?? false,
+            }}
+          />
+        )}
       </div>
-      <DocumentsViewWrapper
-        documents={documents.success.docs}
-        paging={{
-          page: documents.success.page,
-          pageSize: documents.success.pageSize,
-          total: documents.success.total,
-          totalPages: documents.success.totalPages,
-          hasMore: documents.success.hasMore,
-        }}
-      />
+    </ErrorBoundary>
+  );
+}
+
+function AllDocumentsSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 9 }).map((_, i) => (
+        <Skeleton key={i} className="h-40 w-full" />
+      ))}
     </div>
   );
 }

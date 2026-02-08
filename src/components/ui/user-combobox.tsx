@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Check, ChevronDown, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { searchEmployeesForShare } from "@/actions/documents/documents";
+import { useSearchEmployees } from "@/hooks/documents";
 
 type Employee = {
   id: number;
@@ -53,41 +53,13 @@ export function UserCombobox({
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Employee[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
 
-  // Debounced search
-  const performSearch = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    try {
-      const result = await searchEmployeesForShare(query, 8);
-      if (result.success) {
-        setSearchResults(result.success);
-      }
-    } catch (error) {
-      console.error("Search error:", error);
-    } finally {
-      setIsSearching(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      performSearch(searchQuery);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, performSearch]);
+  const { data: searchResults = [], isLoading: isSearching } =
+    useSearchEmployees(searchQuery, 8, open && searchQuery.length >= 2);
 
   const handleSelectUser = (user: Employee) => {
     onSelectUser(user);
     setSearchQuery("");
-    setSearchResults([]);
     setOpen(false);
   };
 

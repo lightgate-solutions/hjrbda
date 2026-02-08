@@ -1,3 +1,7 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: <> */
+/** biome-ignore-all lint/correctness/useExhaustiveDependencies: <> */
+// biome-ignore-all lint/style/noNonNullAssertion: <>
 "use client";
 
 import {
@@ -10,15 +14,19 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
-  FileIcon,
-  User,
   FileText,
   Eye,
   Download,
   MoreVertical,
-  Edit2,
-  MessageSquare,
+  Upload,
   Trash2,
+  Send,
+  Clock,
+  User,
+  Tag,
+  Globe,
+  Building2,
+  Shield,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -36,29 +44,42 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { Dropzone, type FileWithMetadata } from "@/components/ui/dropzone";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getDocumentComments,
   addDocumentComment,
-  getDocumentVersions,
-  getDocumentLogs,
-  getMyDocumentAccess,
-  getDocumentShares,
+  deleteDocumentVersion,
   addDocumentShare,
   removeDocumentShare,
-  searchEmployeesForShare,
+  updateDocumentPublic,
+  updateDepartmentAccess,
   type getActiveFolderDocuments,
 } from "@/actions/documents/documents";
 import { uploadNewDocumentVersion } from "@/actions/documents/upload";
 import { DocumentsActions } from "./document-actions";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useDocumentAccess,
+  useDocumentComments,
+  useDocumentVersions,
+  useDocumentLogs,
+  useDocumentShares,
+  useSearchEmployees,
+} from "@/hooks/documents";
+import { useDebounce } from "use-debounce";
+import {
+  DocumentCommentsSkeleton,
+  DocumentVersionsSkeleton,
+  DocumentLogsSkeleton,
+  DocumentSharesSkeleton,
+} from "@/components/skeletons/documents";
 
 type DocumentType = NonNullable<
   Awaited<ReturnType<typeof getActiveFolderDocuments>>["success"]
@@ -68,112 +89,77 @@ export function DocumentSheet({
   doc,
   pathname,
   trigger,
+  open,
+  onOpenChange,
 }: {
   doc: DocumentType;
   pathname: string;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [files, setFiles] = useState<FileWithMetadata[]>();
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const router = useRouter();
+  const activeXhrRef = useRef<XMLHttpRequest | null>(null);
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState("overview");
-
-  // biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition
-  const [comments, setComments] = useState<any[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
-
-  // biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition
-  const [versions, setVersions] = useState<any[]>([]);
-  const [versionsLoading, setVersionsLoading] = useState(false);
-
-  // biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition
-  const [logs, setLogs] = useState<any[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [_myAccess, setMyAccess] = useState<{
-    level: "none" | "view" | "edit" | "manage";
-    isOwner: boolean;
-    isAdminDepartment?: boolean;
-  } | null>(null);
 
   const [shareEmail, setShareEmail] = useState("");
   const [shareLevel, setShareLevel] = useState<"view" | "edit" | "manage">(
     "view",
   );
-  // biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition
-  const [shareSuggestions, setShareSuggestions] = useState<any[]>([]);
-  const [shareSuggestionsLoading, setShareSuggestionsLoading] = useState(false);
-  // biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition
-  const [shares, setShares] = useState<any[]>([]);
-  const [sharesLoading, setSharesLoading] = useState(false);
 
-  const loadComments = useCallback(async () => {
-    try {
-      setCommentsLoading(true);
-      const res = await getDocumentComments(doc.id);
-      if (res.success) {
-        setComments(res.success);
-      } else {
-        toast.error(res.error?.reason);
-      }
-    } finally {
-      setCommentsLoading(false);
-    }
-  }, [doc.id]);
+  // Internal open state for uncontrolled mode
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = open !== undefined ? open : internalOpen;
+  const handleOpenChange = (value: boolean) => {
+    if (onOpenChange) onOpenChange(value);
+    else setInternalOpen(value);
+  };
 
-  const loadVersions = useCallback(async () => {
-    try {
-      setVersionsLoading(true);
-      const res = await getDocumentVersions(doc.id);
-      if (res.success) {
-        setVersions(res.success);
-      } else {
-        toast.error(res.error?.reason);
-      }
-    } finally {
-      setVersionsLoading(false);
-    }
-  }, [doc.id]);
+  // React Query hooks - gated by sheet open state and active tab
+  const { data: myAccess } = useDocumentAccess(doc.id, isOpen);
 
-  const loadLogs = useCallback(async () => {
-    try {
-      setLogsLoading(true);
-      const res = await getDocumentLogs(doc.id);
-      if (res.success) {
-        setLogs(res.success);
-      } else {
-        toast.error(res.error?.reason);
-      }
-    } finally {
-      setLogsLoading(false);
-    }
-  }, [doc.id]);
+  const { data: comments = [], isLoading: commentsLoading } =
+    useDocumentComments(doc.id, isOpen && activeTab === "comments");
 
-  const loadMyAccess = useCallback(async () => {
-    const res = await getMyDocumentAccess(doc.id);
-    if (res.success) {
-      setMyAccess(res.success);
-    } else {
-      toast.error(res.error.reason);
-    }
-  }, [doc.id]);
+  const { data: versions = [], isLoading: versionsLoading } =
+    useDocumentVersions(doc.id, isOpen && activeTab === "versions");
 
-  useEffect(() => {
-    loadMyAccess();
-  }, [loadMyAccess]);
+  const { data: logs = [], isLoading: logsLoading } = useDocumentLogs(
+    doc.id,
+    isOpen && activeTab === "history",
+  );
 
-  const loadShares = useCallback(async () => {
-    try {
-      setSharesLoading(true);
-      const res = await getDocumentShares(doc.id);
-      if (res.success) setShares(res.success);
-      else if (res.error) toast.error(res.error.reason);
-    } finally {
-      setSharesLoading(false);
-    }
-  }, [doc.id]);
+  const { data: shares = [], isLoading: sharesLoading } = useDocumentShares(
+    doc.id,
+    isOpen && activeTab === "permissions",
+  );
+
+  // Debounced employee search
+  const [debouncedSearchEmail] = useDebounce(shareEmail, 300);
+  const { data: shareSuggestions = [], isLoading: shareSuggestionsLoading } =
+    useSearchEmployees(
+      debouncedSearchEmail,
+      8,
+      isOpen && activeTab === "permissions" && debouncedSearchEmail.length >= 2,
+    );
+
+  const [publicValue, setPublicValue] = useState(!!doc.public);
+  const [pubUpdating, setPubUpdating] = useState(false);
+  const initialDeptLevel =
+    (doc.accessRules.find(
+      (r: any) => r.department && r.department === doc.department,
+    )?.accessLevel as "view" | "edit" | "manage") ?? "view";
+  const [deptEnabled, setDeptEnabled] = useState(!!doc.departmental);
+  const [deptLevel, setDeptLevel] = useState<"view" | "edit" | "manage">(
+    initialDeptLevel,
+  );
+  const [deptUpdating, setDeptUpdating] = useState(false);
 
   async function handleShareAdd() {
     const email = shareEmail.trim();
@@ -182,7 +168,9 @@ export function DocumentSheet({
     if (res.success) {
       toast.success(res.success.reason);
       setShareEmail("");
-      await loadShares();
+      await queryClient.invalidateQueries({
+        queryKey: ["document-shares", doc.id],
+      });
     } else {
       toast.error(res.error?.reason ?? "Failed to add share");
     }
@@ -192,42 +180,13 @@ export function DocumentSheet({
     const res = await removeDocumentShare(doc.id, userId);
     if (res.success) {
       toast.success(res.success.reason);
-      await loadShares();
+      await queryClient.invalidateQueries({
+        queryKey: ["document-shares", doc.id],
+      });
     } else {
       toast.error(res.error?.reason ?? "Failed to remove share");
     }
   }
-
-  useEffect(() => {
-    if (!shareEmail || shareEmail.length < 2) {
-      setShareSuggestions([]);
-      return;
-    }
-    let canceled = false;
-    setShareSuggestionsLoading(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await searchEmployeesForShare(shareEmail);
-        if (!canceled) {
-          if (res.success) setShareSuggestions(res.success);
-          else setShareSuggestions([]);
-        }
-      } finally {
-        if (!canceled) setShareSuggestionsLoading(false);
-      }
-    }, 300);
-    return () => {
-      canceled = true;
-      clearTimeout(t);
-    };
-  }, [shareEmail]);
-
-  useEffect(() => {
-    if (activeTab === "comments") loadComments();
-    if (activeTab === "versions") loadVersions();
-    if (activeTab === "history") loadLogs();
-    if (activeTab === "sharing") loadShares();
-  }, [activeTab, loadComments, loadVersions, loadLogs, loadShares]);
 
   async function handleAddComment() {
     const text = commentText.trim();
@@ -236,7 +195,9 @@ export function DocumentSheet({
     if (res.success) {
       setCommentText("");
       toast.success("Comment added");
-      await loadComments();
+      await queryClient.invalidateQueries({
+        queryKey: ["document-comments", doc.id],
+      });
       router.refresh();
     } else {
       toast.error(res.error?.reason ?? "Failed to add comment");
@@ -247,7 +208,6 @@ export function DocumentSheet({
     setFiles((prevFiles) =>
       prevFiles?.map((f) => (f.file === file ? { ...f, uploading: true } : f)),
     );
-
     setProgress(30);
     try {
       const endpoint = "/api/r2/upload";
@@ -260,7 +220,6 @@ export function DocumentSheet({
           size: file.size,
         }),
       });
-
       setProgress(40);
       if (!presignedResponse.ok) {
         toast.error("Failed to get presigned URL");
@@ -273,13 +232,11 @@ export function DocumentSheet({
         );
         return null;
       }
-
       setProgress(50);
       const { presignedUrl, key, publicUrl } = await presignedResponse.json();
-
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-
+        activeXhrRef.current = xhr;
         setProgress(70);
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
@@ -298,7 +255,6 @@ export function DocumentSheet({
             );
           }
         };
-
         setProgress(90);
         xhr.onload = () => {
           if (xhr.status === 200 || xhr.status === 204) {
@@ -309,22 +265,26 @@ export function DocumentSheet({
                   : f,
               ),
             );
+            activeXhrRef.current = null;
             resolve();
           } else {
+            activeXhrRef.current = null;
             reject(new Error(`Upload failed with status: ${xhr.status}`));
           }
         };
-
         xhr.onerror = () => {
+          activeXhrRef.current = null;
           reject(new Error("Upload failed"));
         };
-
+        xhr.onabort = () => {
+          activeXhrRef.current = null;
+          reject(new Error("Upload aborted"));
+        };
         xhr.open("PUT", presignedUrl);
         xhr.setRequestHeader("Content-Type", file.type);
         xhr.send(file);
       });
       setProgress(100);
-      // biome-ignore lint/style/noNonNullAssertion: Env var guaranteed
       const url = process.env.CLOUDFLARE_R2_PUBLIC_URL!;
       return publicUrl ?? `${url}/${encodeURIComponent(key)}`;
     } catch (error) {
@@ -344,19 +304,16 @@ export function DocumentSheet({
   async function onSubmit() {
     setIsUploading(true);
     setProgress(0);
-
     try {
       if (!files || files?.length <= 0) {
         toast.error("No file selected");
         return;
       }
-
       setProgress(10);
       setProgress(20);
       const url = await uploadFile(files[0].file);
       if (!url) throw new Error("File upload failed. No URL returned.");
       const fileSizeMB = (files[0].file.size / (1024 * 1024)).toFixed(2);
-
       const res = await uploadNewDocumentVersion({
         id: doc.id,
         newVersionNumber: doc.currentVersion + 1,
@@ -366,7 +323,7 @@ export function DocumentSheet({
         pathname,
       });
       if (res.success) {
-        toast.success("New file version uploaded succesfully");
+        toast.success("New version uploaded successfully");
         router.refresh();
       } else {
         toast.error(res.error?.reason);
@@ -378,458 +335,914 @@ export function DocumentSheet({
     }
   }
 
+  const canEdit =
+    myAccess?.isOwner ||
+    myAccess?.level === "edit" ||
+    myAccess?.level === "manage";
+  const canManage =
+    myAccess?.isOwner ||
+    myAccess?.isAdminDepartment ||
+    myAccess?.level === "manage";
+
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
         {trigger ?? (
           <Button
-            variant="outline"
-            className="flex flex-1 w-full gap-3 hover:cursor-pointer"
+            size="sm"
+            variant="ghost"
+            className="gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground"
           >
-            <Eye size={16} />
+            <Eye size={15} aria-hidden="true" />
             Open
           </Button>
         )}
       </SheetTrigger>
-      <SheetContent className="min-w-[90vw] sm:min-w-[600px] lg:min-w-[800px] flex flex-col h-full">
-        <SheetHeader className="space-y-4 pb-4 border-b">
+      <SheetContent className="min-w-[92vw] sm:min-w-[600px] lg:min-w-3xl 2xl:min-w-4xl flex flex-col h-full p-0">
+        {/* Header */}
+        <SheetHeader className="px-6 pt-6 pb-4 border-b border-border space-y-0">
           <div className="flex items-start gap-4">
-            <div className="bg-primary/10 p-3 rounded-xl">
-              <FileIcon className="h-8 w-8 text-primary" />
+            <div className="rounded-xl bg-primary/8 p-3 shrink-0">
+              <FileText size={24} className="text-primary" aria-hidden="true" />
             </div>
-            <div className="flex-1 space-y-1">
-              <SheetTitle className="text-xl">
+            <div className="flex-1 min-w-0 space-y-1">
+              <SheetTitle className="text-lg font-semibold truncate">
                 {doc.title.charAt(0).toUpperCase() + doc.title.slice(1)}
               </SheetTitle>
-              <SheetDescription className="flex items-center gap-2 text-xs">
-                <Badge variant="outline" className="font-normal">
+              <SheetDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                <Badge
+                  variant="outline"
+                  className="font-normal text-xs px-1.5 py-0"
+                >
                   v{doc.currentVersion}
                 </Badge>
-                <span>•</span>
-                <span>{doc.fileSize} MB</span>
-                <span>•</span>
-                <span>Modified {doc.updatedAt.toLocaleDateString()}</span>
+                <span className="text-muted-foreground">{doc.fileSize} MB</span>
+                <span className="text-muted-foreground">
+                  Modified {new Date(doc.updatedAt).toLocaleDateString()}
+                </span>
               </SheetDescription>
             </div>
-            <div className="flex items-center gap-2">
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 pt-4">
+            {doc.filePath && (
               <Link
                 target="_blank"
-                href={doc.filePath ?? ""}
+                href={doc.filePath}
                 rel="noopener noreferrer"
+                aria-label="Open document in new tab"
               >
-                <Button size="sm" variant="outline">
-                  <Eye className="h-4 w-4 mr-2" />
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Eye size={14} aria-hidden="true" />
                   View
                 </Button>
               </Link>
-              <a
-                href={doc.filePath ?? ""}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
+            )}
+            {doc.filePath && (
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  const url = doc.filePath;
+                  if (!url) return;
+                  try {
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                  } catch {
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                aria-label="Download document"
               >
-                <Button size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
+                <Download size={14} aria-hidden="true" />
+                Download
+              </Button>
+            )}
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Upload size={14} aria-hidden="true" />
+                  <span className="hidden sm:inline">New Version</span>
                 </Button>
-              </a>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Upload New Version</DialogTitle>
+                </DialogHeader>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onSubmit();
+                  }}
+                  className="space-y-4"
+                >
+                  <Dropzone
+                    provider="cloudflare-r2"
+                    variant="compact"
+                    maxFiles={1}
+                    maxSize={1024 * 1024 * 50}
+                    onFilesChange={(files) => setFiles(files)}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isUploading}
+                    className="w-full"
+                  >
+                    {isUploading && <Spinner className="mr-2" />}
+                    {!isUploading ? "Upload" : "Uploading..."}
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <DocumentsActions
-                      type="archive"
-                      id={doc.id}
-                      pathname={pathname}
-                    />
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive" asChild>
-                    <DocumentsActions
-                      type="delete"
-                      id={doc.id}
-                      pathname={pathname}
-                    />
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  {isUploading && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          {progress < 100 ? "Uploading..." : "Complete"}
+                        </span>
+                        <span className="font-medium">{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="w-full h-1.5" />
+                    </div>
+                  )}
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="More actions"
+                >
+                  <MoreVertical size={15} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem className="cursor-pointer" asChild>
+                  <DocumentsActions
+                    type="archive"
+                    id={doc.id}
+                    pathname={pathname}
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  asChild
+                >
+                  <DocumentsActions
+                    type="delete"
+                    id={doc.id}
+                    pathname={pathname}
+                  />
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </SheetHeader>
 
+        {/* Tabs */}
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
-          className="flex-1 flex flex-col min-h-0 mt-4"
+          className="flex-1 flex flex-col min-h-0"
         >
-          <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
-            <TabsTrigger
-              value="overview"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-            >
-              Overview
-            </TabsTrigger>
-            <TabsTrigger
-              value="comments"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-            >
-              Comments
-            </TabsTrigger>
-            <TabsTrigger
-              value="versions"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-            >
-              Versions
-            </TabsTrigger>
-            <TabsTrigger
-              value="sharing"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-            >
-              Sharing
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-            >
-              History
-            </TabsTrigger>
-          </TabsList>
+          <div className="px-6 border-b border-border">
+            <TabsList className="h-auto p-0 bg-transparent rounded-none w-full justify-start gap-0">
+              {[
+                "overview",
+                "comments",
+                "versions",
+                "permissions",
+                ...(canManage ? ["history"] : []),
+              ].map((tab) => (
+                <TabsTrigger
+                  key={tab}
+                  value={tab}
+                  className="capitalize rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5 text-sm"
+                >
+                  {tab}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
-          <ScrollArea className="flex-1 -mx-6 px-6 py-4">
-            <TabsContent value="overview" className="space-y-6 m-0">
-              <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {/* OVERVIEW TAB */}
+            <TabsContent value="overview" className="m-0 space-y-6">
+              {doc.description && (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                  <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
                     Description
-                  </h3>
-                  <p className="text-sm">
-                    {doc.description || "No description provided."}
-                  </p>
+                  </h4>
+                  <p className="text-sm leading-relaxed">{doc.description}</p>
                 </div>
+              )}
 
-                <Separator />
-
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Details
-                  </h3>
-                  <dl className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <dt className="text-muted-foreground">Uploaded By</dt>
-                      <dd>{doc.uploader}</dd>
+              <div>
+                <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                  Details
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-muted p-1.5 mt-0.5">
+                      <User
+                        size={14}
+                        className="text-muted-foreground"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Created At</dt>
-                      <dd>{doc.createdAt.toLocaleDateString()}</dd>
+                      <p className="text-xs text-muted-foreground">Owner</p>
+                      <p className="text-sm font-medium">{doc.uploader}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-muted p-1.5 mt-0.5">
+                      <Clock
+                        size={14}
+                        className="text-muted-foreground"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Status</dt>
-                      <dd className="capitalize">{doc.status}</dd>
+                      <p className="text-xs text-muted-foreground">Created</p>
+                      <p className="text-sm font-medium">
+                        {doc.createdAt.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-muted p-1.5 mt-0.5">
+                      <FileText
+                        size={14}
+                        className="text-muted-foreground"
+                        aria-hidden="true"
+                      />
                     </div>
                     <div>
-                      <dt className="text-muted-foreground">Type</dt>
-                      <dd>{doc.mimeType || "Unknown"}</dd>
+                      <p className="text-xs text-muted-foreground">Type</p>
+                      <p className="text-sm font-medium">{doc.mimeType}</p>
                     </div>
-                  </dl>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-4">
-                    Quick Actions
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          Upload New Version
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Upload New Version</DialogTitle>
-                        </DialogHeader>
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            onSubmit();
-                          }}
-                          className="space-y-6"
-                        >
-                          <Dropzone
-                            provider="cloudflare-r2"
-                            variant="compact"
-                            maxFiles={1}
-                            maxSize={1024 * 1024 * 50} // 50MB
-                            onFilesChange={(files) => setFiles(files)}
-                          />
-                          <Button
-                            type="submit"
-                            disabled={isUploading}
-                            className="w-full"
-                          >
-                            {isUploading && <Spinner className="mr-2" />}
-                            {!isUploading ? "Upload Version" : "Uploading..."}
-                          </Button>
-                          {isUploading && (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">
-                                  {progress < 100
-                                    ? "Uploading..."
-                                    : "Upload complete!"}
-                                </span>
-                                <span className="font-medium">{progress}%</span>
-                              </div>
-                              <Progress value={progress} className="w-full" />
-                            </div>
-                          )}
-                        </form>
-                      </DialogContent>
-                    </Dialog>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-md bg-muted p-1.5 mt-0.5">
+                      <Shield
+                        size={14}
+                        className="text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      <p className="text-sm font-medium capitalize">
+                        {doc.status}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              {doc.tags.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+                    Tags
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {doc.tags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
+                      >
+                        <Tag size={11} aria-hidden="true" />
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* COMMENTS TAB */}
+            <TabsContent value="comments" className="m-0 space-y-5">
+              {canEdit && (
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Write a comment..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    rows={3}
+                    className="resize-none text-sm"
+                    aria-label="Comment text"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={handleAddComment}
+                      disabled={!commentText.trim()}
+                      className="gap-1.5"
+                    >
+                      <Send size={13} aria-hidden="true" />
+                      Post
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {commentsLoading ? (
+                  <DocumentCommentsSkeleton />
+                ) : comments.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-sm text-muted-foreground">
+                      No comments yet
+                    </p>
+                  </div>
+                ) : (
+                  comments.map((c: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="rounded-lg border border-border p-3 space-y-1.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                            <span className="text-[10px] font-medium">
+                              {(c.userName ?? "U")[0]}
+                            </span>
+                          </div>
+                          <span className="text-sm font-medium">
+                            {c.userName ?? "User"}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(c.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground pl-8">
+                        {c.comment}
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </TabsContent>
 
-            <TabsContent value="comments" className="space-y-4 m-0">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add a comment..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleAddComment();
-                    }
-                  }}
-                />
-                <Button onClick={handleAddComment} size="icon">
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="space-y-4">
-                {commentsLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Spinner />
-                  </div>
-                ) : comments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    No comments yet.
-                  </div>
-                ) : (
-                  <>
-                    {/* biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition */}
-                    {comments.map((comment: any) => (
-                      <div key={comment.id} className="flex gap-3 text-sm">
-                        <div className="bg-muted h-8 w-8 rounded-full flex items-center justify-center shrink-0">
-                          <User className="h-4 w-4" />
+            {/* VERSIONS TAB */}
+            <TabsContent value="versions" className="m-0 space-y-3">
+              {versionsLoading ? (
+                <DocumentVersionsSkeleton />
+              ) : versions.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-sm text-muted-foreground">
+                    No version history
+                  </p>
+                </div>
+              ) : (
+                versions.map((v: any) => {
+                  const isCurrent = v.versionNumber === doc.currentVersion;
+                  return (
+                    <div
+                      key={v.id}
+                      className={`rounded-lg border p-3 flex items-center justify-between transition-colors ${
+                        isCurrent
+                          ? "border-primary/20 bg-primary/4"
+                          : "border-border"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`rounded-md p-1.5 shrink-0 ${
+                            isCurrent ? "bg-primary/10" : "bg-muted"
+                          }`}
+                        >
+                          <FileText
+                            size={14}
+                            className={
+                              isCurrent
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                            }
+                            aria-hidden="true"
+                          />
                         </div>
-                        <div className="space-y-1">
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">
-                              {comment.user.name}
+                            <span className="text-sm font-medium">
+                              v{v.versionNumber}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(comment.createdAt).toLocaleDateString()}
-                            </span>
+                            {isCurrent && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] px-1.5 py-0"
+                              >
+                                Current
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-muted-foreground">
-                            {comment.content}
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(v.createdAt).toLocaleString()} ·{" "}
+                            {v.fileSize} MB · {v.uploadedByName ?? "User"}
                           </p>
                         </div>
                       </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="versions" className="space-y-4 m-0">
-              {versionsLoading ? (
-                <div className="flex justify-center py-4">
-                  <Spinner />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition */}
-                  {versions.map((v: any) => (
-                    <div
-                      key={v.id}
-                      className="flex items-center justify-between border rounded-lg p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="bg-muted p-2 rounded">
-                          <FileText className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="font-medium">Version {v.version}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(v.createdAt).toLocaleDateString()} •{" "}
-                            {v.fileSize} MB
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Link
-                          href={v.filePath}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <a
-                          href={v.filePath}
-                          download
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button variant="ghost" size="sm">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="sharing" className="space-y-6 m-0">
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="user@example.com"
-                    value={shareEmail}
-                    onChange={(e) => setShareEmail(e.target.value)}
-                  />
-                  <select
-                    className="border rounded px-2 text-sm bg-background"
-                    value={shareLevel}
-                    onChange={(e) =>
-                      setShareLevel(
-                        e.target.value as "view" | "edit" | "manage",
-                      )
-                    }
-                  >
-                    <option value="view">View</option>
-                    <option value="edit">Edit</option>
-                    <option value="manage">Manage</option>
-                  </select>
-                  <Button onClick={handleShareAdd}>Add</Button>
-                </div>
-
-                {shareSuggestionsLoading && (
-                  <div className="text-xs text-muted-foreground">
-                    Searching...
-                  </div>
-                )}
-                {shareSuggestions.length > 0 && (
-                  <div className="border rounded-md p-2 max-h-40 overflow-y-auto bg-popover">
-                    {/* biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition */}
-                    {shareSuggestions.map((s: any) => (
-                      <button
-                        type="button"
-                        key={s.id}
-                        className="flex items-center justify-between py-1.5 px-2 hover:bg-muted rounded cursor-pointer w-full border-0 bg-transparent"
-                        onClick={() => setShareEmail(s.email)}
-                      >
-                        <div className="text-sm">
-                          <span className="font-medium">{s.name}</span>
-                          <span className="text-muted-foreground ml-2">
-                            {s.email}
-                          </span>
-                        </div>
-                        <Badge variant="outline">{s.department}</Badge>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium">People with access</h4>
-                  {sharesLoading ? (
-                    <div className="text-xs text-muted-foreground">
-                      Loading...
-                    </div>
-                  ) : shares.length === 0 ? (
-                    <div className="text-sm text-muted-foreground italic">
-                      No specific users have been granted access.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {/* biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition */}
-                      {shares.map((u: any) => (
-                        <div
-                          key={u.userId}
-                          className="flex items-center justify-between border rounded p-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="bg-muted h-8 w-8 rounded-full flex items-center justify-center">
-                              <span className="text-xs font-medium">
-                                {u.name?.[0] || "U"}
-                              </span>
-                            </div>
-                            <div>
-                              <div className="text-sm font-medium">
-                                {u.name ?? "User"}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {u.email} • {u.accessLevel}
-                              </div>
-                            </div>
-                          </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {v.filePath && (
                           <Button
                             variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleShareRemove(u.userId)}
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              const url = v.filePath;
+                              if (!url) return;
+                              try {
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `${doc.title}-v${v.versionNumber}`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              } catch {
+                                window.open(
+                                  url,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              }
+                            }}
+                            aria-label={`Download version ${v.versionNumber}`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Download size={14} />
                           </Button>
-                        </div>
-                      ))}
+                        )}
+                        {!isCurrent && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={async () => {
+                              const res = await deleteDocumentVersion(
+                                v.id,
+                                pathname,
+                              );
+                              if (res?.success) {
+                                toast.success(res.success.reason);
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["document-versions", doc.id],
+                                });
+                                router.refresh();
+                              } else {
+                                toast.error(
+                                  res?.error?.reason ??
+                                    "Failed to delete version",
+                                );
+                              }
+                            }}
+                            aria-label={`Delete version ${v.versionNumber}`}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                  );
+                })
+              )}
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4 m-0">
-              {logsLoading ? (
-                <div className="flex justify-center py-4">
+            {/* PERMISSIONS TAB */}
+            <TabsContent value="permissions" className="m-0 space-y-6">
+              {!myAccess ? (
+                <div className="flex items-center justify-between py-4">
+                  <p className="text-sm text-muted-foreground">
+                    Loading permissions...
+                  </p>
                   <Spinner />
                 </div>
-              ) : (
-                <div className="relative border-l ml-2 space-y-6 pl-6 py-2">
-                  {/* biome-ignore lint/suspicious/noExplicitAny: Pending proper type definition */}
-                  {logs.map((log: any, i) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: Log ID not available
-                    <div key={i} className="relative">
-                      <div className="absolute -left-[29px] top-1 h-3 w-3 rounded-full border bg-background" />
-                      <div className="text-sm">
-                        <span className="font-medium">{log.user.name}</span>{" "}
-                        <span className="text-muted-foreground">
-                          {log.action.replace(/_/g, " ").toLowerCase()}
+              ) : canManage ? (
+                <>
+                  {/* Access Overview */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-border p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User
+                          size={14}
+                          className="text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          Owner
                         </span>
                       </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {new Date(log.createdAt).toLocaleString()}
+                      <p className="text-sm font-medium">{doc.uploader}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Full access
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border border-border p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Globe
+                            size={14}
+                            className="text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                            Public
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setPubUpdating(true);
+                              const next = !publicValue;
+                              const res = await updateDocumentPublic(
+                                doc.id,
+                                next,
+                                pathname,
+                              );
+                              if (res?.success) {
+                                setPublicValue(next);
+                                toast.success(res.success.reason);
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["document-access", doc.id],
+                                });
+                                router.refresh();
+                              } else {
+                                toast.error(
+                                  res?.error?.reason ?? "Failed to update",
+                                );
+                              }
+                            } finally {
+                              setPubUpdating(false);
+                            }
+                          }}
+                          disabled={pubUpdating}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            publicValue ? "bg-primary" : "bg-muted"
+                          }`}
+                          role="switch"
+                          aria-checked={publicValue}
+                          aria-label="Toggle public access"
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                              publicValue ? "translate-x-4" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {publicValue
+                          ? "Anyone in the organization can view"
+                          : "Only shared users have access"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Department Access */}
+                  <div className="rounded-lg border border-border p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building2
+                          size={14}
+                          className="text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                          Department Access
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDeptEnabled((v) => !v)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          deptEnabled ? "bg-primary" : "bg-muted"
+                        }`}
+                        role="switch"
+                        aria-checked={deptEnabled}
+                        aria-label="Toggle department access"
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            deptEnabled ? "translate-x-4" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    {deptEnabled && (
+                      <div className="flex items-center justify-between gap-3 pt-1">
+                        <p className="text-xs text-muted-foreground">
+                          {doc.department} department members can:
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="h-8 rounded-md border border-border bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            value={deptLevel}
+                            onChange={(e) =>
+                              setDeptLevel(
+                                e.target.value as "view" | "edit" | "manage",
+                              )
+                            }
+                            aria-label="Department access level"
+                          >
+                            <option value="view">View</option>
+                            <option value="edit">Edit</option>
+                            <option value="manage">Manage</option>
+                          </select>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={deptUpdating}
+                            onClick={async () => {
+                              try {
+                                setDeptUpdating(true);
+                                const res = await updateDepartmentAccess(
+                                  doc.id,
+                                  deptEnabled,
+                                  deptEnabled ? deptLevel : undefined,
+                                  pathname,
+                                );
+                                if (res?.success) {
+                                  toast.success(res.success.reason);
+                                  await queryClient.invalidateQueries({
+                                    queryKey: ["document-access", doc.id],
+                                  });
+                                  router.refresh();
+                                } else {
+                                  toast.error(
+                                    res?.error?.reason ?? "Failed to update",
+                                  );
+                                }
+                              } finally {
+                                setDeptUpdating(false);
+                              }
+                            }}
+                          >
+                            {deptUpdating ? (
+                              <Spinner className="h-3 w-3" />
+                            ) : (
+                              "Save"
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  {/* Share with Users */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Share with people
+                    </h4>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Email address"
+                        value={shareEmail}
+                        onChange={(e) => setShareEmail(e.target.value)}
+                        className="text-sm h-9"
+                        aria-label="Email to share with"
+                      />
+                      <select
+                        className="h-9 rounded-md border border-border bg-background px-2 text-xs shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        value={shareLevel}
+                        onChange={(e) =>
+                          setShareLevel(
+                            e.target.value as "view" | "edit" | "manage",
+                          )
+                        }
+                        aria-label="Access level for share"
+                      >
+                        <option value="view">View</option>
+                        <option value="edit">Edit</option>
+                        <option value="manage">Manage</option>
+                      </select>
+                      <Button
+                        size="sm"
+                        onClick={handleShareAdd}
+                        className="h-9 shrink-0"
+                      >
+                        Share
+                      </Button>
+                    </div>
+
+                    {shareSuggestionsLoading && (
+                      <p className="text-xs text-muted-foreground">
+                        Searching...
+                      </p>
+                    )}
+                    {shareSuggestions.length > 0 && (
+                      <div className="rounded-lg border border-border divide-y divide-border max-h-36 overflow-y-auto">
+                        {shareSuggestions.slice(0, 20).map((s: any) => (
+                          <button
+                            type="button"
+                            key={s.id}
+                            className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={() => setShareEmail(s.email)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center">
+                                <span className="text-[10px] font-medium">
+                                  {s.name?.[0] ?? "?"}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">{s.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {s.email}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] shrink-0"
+                            >
+                              {s.department}
+                            </Badge>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Current Shares */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        People with access
+                      </h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() =>
+                          queryClient.invalidateQueries({
+                            queryKey: ["document-shares", doc.id],
+                          })
+                        }
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                    {sharesLoading ? (
+                      <DocumentSharesSkeleton />
+                    ) : shares.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No one else has access yet
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {shares.map((u: any) => (
+                          <div
+                            key={u.userId}
+                            className="flex items-center justify-between rounded-lg border border-border p-2.5"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                <span className="text-xs font-medium">
+                                  {(u.name ?? "U")[0]}
+                                </span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {u.name ?? "User"}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {u.email}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <select
+                                className="h-7 rounded-md border border-border bg-background px-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                defaultValue={u.accessLevel}
+                                onChange={async (e) => {
+                                  const lvl = e.target.value as
+                                    | "view"
+                                    | "edit"
+                                    | "manage";
+                                  const res = await addDocumentShare(
+                                    doc.id,
+                                    u.email,
+                                    lvl,
+                                  );
+                                  if (res.success) {
+                                    toast.success("Updated");
+                                    await queryClient.invalidateQueries({
+                                      queryKey: ["document-shares", doc.id],
+                                    });
+                                  } else {
+                                    toast.error(res.error?.reason ?? "Failed");
+                                  }
+                                }}
+                                aria-label={`Access level for ${u.name}`}
+                              >
+                                <option value="view">View</option>
+                                <option value="edit">Edit</option>
+                                <option value="manage">Manage</option>
+                              </select>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleShareRemove(u.userId)}
+                                aria-label={`Remove ${u.name}'s access`}
+                              >
+                                <Trash2 size={13} />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-10">
+                  <Shield
+                    size={32}
+                    className="mx-auto text-muted-foreground mb-3"
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    You don&apos;t have permission to manage access
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => {
+                      queryClient.invalidateQueries({
+                        queryKey: ["document-access", doc.id],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["document-shares", doc.id],
+                      });
+                    }}
+                  >
+                    Check access
+                  </Button>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* HISTORY TAB */}
+            <TabsContent value="history" className="m-0">
+              {logsLoading ? (
+                <DocumentLogsSkeleton />
+              ) : logs.length === 0 ? (
+                <div className="text-center py-10">
+                  <Clock
+                    size={32}
+                    className="mx-auto text-muted-foreground mb-3"
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    No activity recorded yet
+                  </p>
+                </div>
+              ) : (
+                <div className="relative ml-3 border-l border-border pl-6 space-y-5 py-1">
+                  {logs.map((l: any) => (
+                    <div key={l.id} className="relative">
+                      <div className="absolute -left-[27px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-border bg-background" />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm">
+                            <span className="font-medium capitalize">
+                              {l.action}
+                            </span>
+                          </p>
+                          {l.details && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {l.details}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-muted-foreground">
+                            {l.userName ?? "User"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(l.createdAt).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
       </SheetContent>
     </Sheet>

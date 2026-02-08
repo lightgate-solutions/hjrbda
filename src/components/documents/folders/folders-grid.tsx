@@ -1,8 +1,7 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
 "use client";
 
-import { Archive, Folder, LogIn, MoreVertical, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Archive, FolderOpen, MoreVertical, Trash2 } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -40,101 +39,72 @@ export default function FoldersGrid({
   const pathname = usePathname();
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      <div className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-        <div className={`h-24 flex items-center justify-center`}>
-          <Folder size={56} className="text-slate-600" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+      {/* All Documents Folder */}
+      <Link
+        href="/documents/all"
+        className="group relative flex flex-col rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:border-primary/20 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label="Open All Documents folder"
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div className="rounded-lg bg-primary/8 p-2.5 transition-colors group-hover:bg-primary/12">
+            <FolderOpen
+              size={22}
+              className="text-primary transition-transform duration-200 group-hover:scale-105"
+              aria-hidden="true"
+            />
+          </div>
         </div>
-
-        <div className="p-4">
-          <h3 className="font-semibold text-foreground mb-1 truncate">
+        <div className="mt-auto">
+          <h3 className="font-medium text-sm text-foreground mb-0.5 truncate">
             All Documents
           </h3>
-          <p className="text-sm text-muted-foreground mb-3">
-            Last Modified: This week
-          </p>
-
-          <div className="flex gap-2">
-            <Button variant="default" size="sm" className="w-full" asChild>
-              <Link href={`/documents/all`} className="flex-1 ">
-                <LogIn size={16} className="mr-1" />
-                Enter
-              </Link>
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="px-2 bg-transparent"
-                >
-                  <MoreVertical size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem disabled>
-                  <Archive size={16} className="mr-2" />
-                  Archive
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled className="text-red-600">
-                  <Trash2 size={16} className="mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <p className="text-xs text-muted-foreground">View all files</p>
         </div>
-      </div>
-      {folders.map((folder, idx) => (
-        <div
-          key={idx}
-          className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-        >
-          <div className={`h-24 flex items-center justify-center`}>
-            <Folder size={56} className="text-slate-600" />
-          </div>
+      </Link>
 
-          <div className="p-4">
-            <h3 className="font-semibold text-foreground mb-1 truncate">
-              {(folder.path ?? folder.name).charAt(0).toUpperCase() +
-                (folder.path ?? folder.name).slice(1)}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              Last Modified: {folder.updatedAt.toLocaleDateString()}
-            </p>
+      {/* User Folders */}
+      {folders.map((folder, idx) => {
+        const folderUrl =
+          pathname === "/documents"
+            ? `${pathname}/f/${folder.id}`
+            : `${pathname}/${folder.id}`;
+        const displayName = folder.path ?? folder.name;
+        const isProtected =
+          folder.name === department || folder.name === "personal";
 
-            <div className="flex gap-2">
-              <Button variant="default" size="sm" className="w-full" asChild>
-                <Link
-                  href={
-                    pathname === "/documents"
-                      ? `${pathname}/f/${folder.id}`
-                      : `${pathname}/${folder.id}`
-                  }
-                  className="flex-1 "
-                >
-                  <LogIn size={16} className="mr-1" />
-                  Enter
-                </Link>
-              </Button>
+        return (
+          <div
+            key={idx}
+            className="group relative flex flex-col rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:border-primary/20 hover:shadow-md"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <Link
+                href={folderUrl}
+                className="rounded-lg bg-primary/8 p-2.5 transition-colors group-hover:bg-primary/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Open ${displayName} folder`}
+              >
+                <FolderOpen
+                  size={22}
+                  className="text-primary transition-transform duration-200 group-hover:scale-105"
+                  aria-hidden="true"
+                />
+              </Link>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="px-2 bg-transparent"
+                  <button
+                    type="button"
+                    className="rounded-md p-1 text-muted-foreground opacity-0 transition-all duration-150 hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Actions for ${displayName}`}
                   >
                     <MoreVertical size={16} />
-                  </Button>
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="space-y-1">
+                <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem
-                    disabled={
-                      folder.name === department || folder.name === "personal"
-                    }
-                    className="hover:cursor-pointer "
+                    disabled={isProtected}
+                    className="cursor-pointer"
                     asChild
                   >
                     <FoldersAction
@@ -144,10 +114,8 @@ export default function FoldersGrid({
                     />
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    disabled={
-                      folder.name === department || folder.name === "personal"
-                    }
-                    className="text-red-600 hover:cursor-pointer"
+                    disabled={isProtected}
+                    className="text-destructive focus:text-destructive cursor-pointer"
                     asChild
                   >
                     <FoldersAction
@@ -159,9 +127,21 @@ export default function FoldersGrid({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            <Link
+              href={folderUrl}
+              className="mt-auto block focus-visible:outline-none"
+            >
+              <h3 className="font-medium text-sm text-foreground mb-0.5 truncate capitalize">
+                {displayName}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {folder.updatedAt.toLocaleDateString()}
+              </p>
+            </Link>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -179,37 +159,33 @@ function FoldersAction({
     <AlertDialog>
       <AlertDialogTrigger asChild>
         {type === "delete" ? (
-          <Button
-            className="flex w-full gap-3 hover:cursor-pointer"
-            variant="secondary"
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-2 py-1.5 text-sm cursor-pointer"
           >
-            <Trash2 className="mr-2" size={16} />
+            <Trash2 size={15} aria-hidden="true" />
             Delete
-          </Button>
+          </button>
         ) : (
-          <Button
-            variant="outline"
-            className="flex w-full gap-3 hover:cursor-pointer"
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-2 py-1.5 text-sm cursor-pointer"
           >
-            <Archive className="mr-2" size={16} />
+            <Archive size={15} aria-hidden="true" />
             Archive
-          </Button>
+          </button>
         )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-          {type === "delete" ? (
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              folder and remove all its data from our servers.
-            </AlertDialogDescription>
-          ) : (
-            <AlertDialogDescription>
-              This action cannot be undone. This will archive the folder and
-              move all its content to the archive page.
-            </AlertDialogDescription>
-          )}
+          <AlertDialogTitle>
+            {type === "delete" ? "Delete folder?" : "Archive folder?"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {type === "delete"
+              ? "This will permanently delete the folder and all its contents. This action cannot be undone."
+              : "This will archive the folder and move all its content to the archive. You can restore it later."}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -220,11 +196,12 @@ function FoldersAction({
                 if (res.error) {
                   toast.error(res.error.reason);
                 } else {
-                  toast.error(res.success.reason);
+                  toast.success(res.success.reason);
                 }
               }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Continue
+              Delete
             </AlertDialogAction>
           ) : (
             <AlertDialogAction
@@ -233,11 +210,11 @@ function FoldersAction({
                 if (res.error) {
                   toast.error(res.error.reason);
                 } else {
-                  toast.error(res.success.reason);
+                  toast.success(res.success.reason);
                 }
               }}
             >
-              Continue
+              Archive
             </AlertDialogAction>
           )}
         </AlertDialogFooter>

@@ -11,7 +11,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Trash2, Archive } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -23,79 +22,60 @@ export function DocumentsActions({
   id,
   pathname,
   type,
-  trigger,
 }: {
   id: number;
   pathname: string;
   type: "delete" | "archive";
-  trigger?: React.ReactNode;
 }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        {trigger ??
-          (type === "delete" ? (
-            <Button
-              className="flex w-full gap-3 hover:cursor-pointer"
-              variant="secondary"
-            >
-              <Trash2 className="mr-2" size={16} />
-              Delete
-            </Button>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 px-2 py-1.5 text-sm cursor-pointer"
+        >
+          {type === "delete" ? (
+            <Trash2 size={15} aria-hidden="true" />
           ) : (
-            <Button
-              variant="outline"
-              className="flex w-full gap-3 hover:cursor-pointer"
-            >
-              <Archive className="mr-2" size={16} />
-              Archive
-            </Button>
-          ))}
+            <Archive size={15} aria-hidden="true" />
+          )}
+          {type === "delete" ? "Delete" : "Archive"}
+        </button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-          {type === "delete" ? (
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              document and remove all its data from our servers.
-            </AlertDialogDescription>
-          ) : (
-            <AlertDialogDescription>
-              This action cannot be undone. This will archive the document and
-              move it to the archive page.
-            </AlertDialogDescription>
-          )}
+          <AlertDialogTitle>
+            {type === "delete" ? "Delete document?" : "Archive document?"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {type === "delete"
+              ? "This will permanently delete the document and all its data. This action cannot be undone."
+              : "This will archive the document and move it to the archive. You can restore it later."}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          {type === "delete" ? (
-            <AlertDialogAction
-              onClick={async () => {
-                const res = await deleteDocumentAction(id, pathname);
-                if (res.error) {
-                  toast.error(res.error.reason);
-                } else {
-                  toast.success(res.success.reason);
-                }
-              }}
-            >
-              Continue
-            </AlertDialogAction>
-          ) : (
-            <AlertDialogAction
-              onClick={async () => {
-                const res = await archiveDocumentAction(id, pathname);
-                if (res.error) {
-                  toast.error(res.error.reason);
-                } else {
-                  toast.success(res.success.reason);
-                }
-              }}
-            >
-              Continue
-            </AlertDialogAction>
-          )}
+          <AlertDialogAction
+            onClick={async () => {
+              const action =
+                type === "delete"
+                  ? deleteDocumentAction
+                  : archiveDocumentAction;
+              const res = await action(id, pathname);
+              if (res.error) {
+                toast.error(res.error.reason);
+              } else {
+                toast.success(res.success.reason);
+              }
+            }}
+            className={
+              type === "delete"
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : ""
+            }
+          >
+            {type === "delete" ? "Delete" : "Archive"}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

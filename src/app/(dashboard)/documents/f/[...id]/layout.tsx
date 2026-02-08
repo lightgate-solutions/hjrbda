@@ -85,46 +85,60 @@ export default async function DashboardLayout({
 
   return (
     <section className="flex w-full flex-col gap-6">
-      <div className="w-full flex justify-between pt-2">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            All Documents
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pt-2">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Documents
           </h1>
-          <p className="text-muted-foreground">
-            Review and manage all folders across the organization
+          <p className="text-sm text-muted-foreground">
+            Browse and manage folder contents
           </p>
         </div>
-
         <FoldersActions usersFolders={folders} department={user.department} />
       </div>
 
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/documents">Main</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-
-          <BreadcrumbSeparator />
-
-          {links.map((link, index) => (
-            <BreadcrumbItem key={link.href}>
-              {index < links.length - 1 ? (
-                <>
-                  <BreadcrumbLink asChild>
-                    <Link href={link.href}>{link.label}</Link>
-                  </BreadcrumbLink>
-                  <BreadcrumbSeparator />
-                </>
-              ) : (
-                <BreadcrumbPage>{link.label}</BreadcrumbPage>
-              )}
+      {/* Breadcrumb */}
+      <div className="border-b border-border pb-3">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link
+                  href="/documents"
+                  className="text-sm hover:text-foreground transition-colors"
+                >
+                  Documents
+                </Link>
+              </BreadcrumbLink>
             </BreadcrumbItem>
-          ))}
-        </BreadcrumbList>
-      </Breadcrumb>
+            <BreadcrumbSeparator />
+            {links.map((link, index) => (
+              <BreadcrumbItem key={link.href}>
+                {index < links.length - 1 ? (
+                  <>
+                    <BreadcrumbLink asChild>
+                      <Link
+                        href={link.href}
+                        className="text-sm capitalize hover:text-foreground transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    </BreadcrumbLink>
+                    <BreadcrumbSeparator />
+                  </>
+                ) : (
+                  <BreadcrumbPage className="text-sm font-medium capitalize">
+                    {link.label}
+                  </BreadcrumbPage>
+                )}
+              </BreadcrumbItem>
+            ))}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
+      {/* Content */}
       <div>{children}</div>
     </section>
   );
