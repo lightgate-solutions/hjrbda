@@ -2,7 +2,6 @@ import { getUser } from "@/actions/auth/dal";
 import { getUserPreferences } from "@/actions/user-preferences/preferences";
 import AdminDashboard from "@/components/dashboard/AdminDashboard";
 import HrDashboard from "@/components/dashboard/HrDashboard";
-import FinanceDashboard from "@/components/dashboard/FinanceDashboard";
 import StaffDashboard from "@/components/dashboard/StaffDashboard";
 import ManagerDashboard from "@/components/dashboard/ManagerDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,12 +43,8 @@ export default async function DashboardPage() {
         redirect("/documents");
         break;
       case "tasks":
-        // Redirect to appropriate tasks page based on role
-        if (user.isManager) {
-          redirect("/tasks");
-        } else {
-          redirect("/tasks/employee");
-        }
+        // Task/Performance module removed; redirect to dashboard
+        redirect("/");
         break;
       case "projects":
         redirect("/projects");
@@ -90,7 +85,7 @@ export default async function DashboardPage() {
     case "finance":
     case "accounting":
     case "accountant":
-      return <FinanceDashboard />;
+      return <StaffDashboard />;
 
     default:
       // Default fallback: Show staff dashboard for any unrecognized role

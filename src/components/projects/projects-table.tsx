@@ -56,7 +56,9 @@ export function ProjectsTable() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<Awaited<
+    ReturnType<typeof getUser>
+  > | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,7 +80,7 @@ export function ProjectsTable() {
         filteredProjects = filteredProjects.filter((p) => p.status === status);
       }
 
-      setItems(filteredProjects as any);
+      setItems(filteredProjects as Project[]);
       setTotal(res.total);
     } catch (error) {
       console.error("Error loading projects:", error);
