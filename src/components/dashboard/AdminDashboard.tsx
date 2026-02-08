@@ -125,7 +125,6 @@ export default function AdminDashboard({ employeeId }: { employeeId: number }) {
       );
       // Set default values on error
       setStats({
-        tasks: { active: 0, pending: 0, inProgress: 0, total: 0 },
         documents: 0,
         projects: 0,
         emails: { unread: 0, inbox: 0 },
