@@ -62,7 +62,7 @@ const exportCategories: ExportCategory[] = [
   {
     id: "hr",
     title: "Human Resources",
-    description: "Employee records, attendance, and HR data",
+    description: "Employee records and HR data",
     icon: <FileText className="h-5 w-5" />,
     items: [
       {
@@ -83,118 +83,12 @@ const exportCategories: ExportCategory[] = [
         description: "Uploaded employee documents",
         supportsDateFilter: true,
       },
-      {
-        id: "attendance",
-        label: "Attendance Records",
-        description: "Daily attendance logs",
-        supportsDateFilter: true,
-      },
-      {
-        id: "leave-applications",
-        label: "Leave Applications",
-        description: "Leave requests and approvals",
-        supportsDateFilter: true,
-      },
-      {
-        id: "leave-balances",
-        label: "Leave Balances",
-        description: "Current leave balances",
-        supportsDateFilter: false,
-      },
-      {
-        id: "ask-hr",
-        label: "Ask HR Questions",
-        description: "Employee HR inquiries",
-        supportsDateFilter: true,
-      },
-    ],
-  },
-  {
-    id: "payroll",
-    title: "Payroll",
-    description: "Salary structures, allowances, deductions, and payruns",
-    icon: <FileSpreadsheet className="h-5 w-5" />,
-    items: [
-      {
-        id: "salary-structures",
-        label: "Salary Structures",
-        description: "All salary structure definitions",
-        supportsDateFilter: false,
-      },
-      {
-        id: "allowances",
-        label: "Allowances",
-        description: "Allowance definitions",
-        supportsDateFilter: false,
-      },
-      {
-        id: "deductions",
-        label: "Deductions",
-        description: "Deduction definitions",
-        supportsDateFilter: false,
-      },
-      {
-        id: "payruns",
-        label: "All Payruns",
-        description: "Generated payroll runs",
-        supportsDateFilter: true,
-      },
-      {
-        id: "payrun-items",
-        label: "Payrun Items",
-        description: "Individual payrun entries per employee",
-        supportsDateFilter: true,
-      },
-    ],
-  },
-  {
-    id: "loans",
-    title: "Loans",
-    description: "Loan applications, types, and repayments",
-    icon: <FileText className="h-5 w-5" />,
-    items: [
-      {
-        id: "loan-types",
-        label: "Loan Types",
-        description: "Available loan type definitions",
-        supportsDateFilter: false,
-      },
-      {
-        id: "loans-all",
-        label: "All Loans",
-        description: "All loan applications",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loans-active",
-        label: "Active Loans",
-        description: "Currently active loans",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loans-unpaid",
-        label: "Unpaid Loans",
-        description: "Loans pending payment",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loans-settled",
-        label: "Settled Loans",
-        description: "Completed/settled loans",
-        supportsDateFilter: true,
-      },
-      {
-        id: "loan-repayments",
-        label: "Loan Repayments",
-        description: "Repayment schedules and history",
-        supportsDateFilter: true,
-      },
     ],
   },
   {
     id: "operations",
     title: "Operations",
-    description: "Projects, tasks, and operational data",
+    description: "Projects and operational data",
     icon: <FileText className="h-5 w-5" />,
     items: [
       {
@@ -219,62 +113,6 @@ const exportCategories: ExportCategory[] = [
         id: "projects-completed",
         label: "Completed Projects",
         description: "Finished projects",
-        supportsDateFilter: true,
-      },
-      {
-        id: "tasks",
-        label: "All Tasks",
-        description: "All task records",
-        supportsDateFilter: true,
-      },
-      {
-        id: "tasks-pending",
-        label: "Pending Tasks",
-        description: "Tasks not started",
-        supportsDateFilter: true,
-      },
-      {
-        id: "tasks-in-progress",
-        label: "In-Progress Tasks",
-        description: "Tasks currently being worked on",
-        supportsDateFilter: true,
-      },
-      {
-        id: "tasks-completed",
-        label: "Completed Tasks",
-        description: "Finished tasks",
-        supportsDateFilter: true,
-      },
-      {
-        id: "tasks-overdue",
-        label: "Overdue Tasks",
-        description: "Tasks past due date",
-        supportsDateFilter: true,
-      },
-      {
-        id: "task-submissions",
-        label: "Task Submissions",
-        description: "Task submission records",
-        supportsDateFilter: true,
-      },
-    ],
-  },
-  {
-    id: "finance",
-    title: "Finance",
-    description: "Company expenses and financial transactions",
-    icon: <FileSpreadsheet className="h-5 w-5" />,
-    items: [
-      {
-        id: "company-expenses",
-        label: "Company Expenses",
-        description: "Recorded company expenses",
-        supportsDateFilter: true,
-      },
-      {
-        id: "balance-transactions",
-        label: "Balance Transactions",
-        description: "Financial transaction history",
         supportsDateFilter: true,
       },
     ],

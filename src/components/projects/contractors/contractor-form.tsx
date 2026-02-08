@@ -29,8 +29,19 @@ const contractorSchema = z.object({
 
 type ContractorFormValues = z.infer<typeof contractorSchema>;
 
+export type ContractorRow = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  specialization: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
 interface ContractorFormProps {
-  contractor?: any;
+  contractor?: ContractorRow | null;
   onSuccess?: () => void;
 }
 

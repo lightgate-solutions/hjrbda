@@ -10,12 +10,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import NotificationBell from "@/components/ui/notification-bell";
-import { AttendanceSignInPopup } from "@/components/hr/attendance-signin-popup";
 import { requireAuth } from "@/actions/auth/dal";
-import {
-  getMyTodayAttendance,
-  getCurrentAttendanceSettings,
-} from "@/actions/hr/attendance";
 import { ConvexClientProvider } from "@/lib/convex-client-provider";
 
 export default async function RootLayout({
@@ -28,12 +23,7 @@ export default async function RootLayout({
   });
   if (!session) redirect("/auth/login");
 
-  // Get employee data and today's attendance for the pop-up
   const authData = await requireAuth();
-  const myAttendance = await getMyTodayAttendance();
-  const settings = await getCurrentAttendanceSettings();
-  const hasSignedInToday =
-    myAttendance !== null && myAttendance.signInTime !== null;
 
   return (
     <section className="p-1">
@@ -60,14 +50,6 @@ export default async function RootLayout({
             <div className="p-2">{children}</div>
           </SidebarInset>
         </SidebarProvider>
-
-        {/* Attendance Sign-In Pop-up - Global */}
-        <AttendanceSignInPopup
-          currentEmployeeId={authData.employee.id}
-          hasSignedInToday={hasSignedInToday}
-          isLoading={false}
-          settings={settings}
-        />
       </ConvexClientProvider>
     </section>
   );

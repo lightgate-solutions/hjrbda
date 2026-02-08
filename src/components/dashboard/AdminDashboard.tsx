@@ -13,25 +13,17 @@ import StatsCard from "@/components/dashboard-components/stats-card";
 import ActivityChart from "@/components/dashboard-components/activity-chart";
 import RecentDocuments from "@/components/dashboard-components/recent-documents";
 import RecentNotifications from "@/components/dashboard-components/recent-notifications";
-import BudgetBreakdownChart from "@/components/dashboard-components/budget-breakdown-chart";
 import {
   Users,
   FileText,
   DollarSign,
   CheckSquare,
-  Settings,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardStats {
-  tasks: {
-    active: number;
-    pending: number;
-    inProgress: number;
-    total: number;
-  };
   documents: number;
   projects: number;
   emails: {
@@ -133,7 +125,6 @@ export default function AdminDashboard({ employeeId }: { employeeId: number }) {
       );
       // Set default values on error
       setStats({
-        tasks: { active: 0, pending: 0, inProgress: 0, total: 0 },
         documents: 0,
         projects: 0,
         emails: { unread: 0, inbox: 0 },
@@ -260,13 +251,6 @@ export default function AdminDashboard({ employeeId }: { employeeId: number }) {
           href="/projects"
           accentColor="mint"
         />
-        <StatsCard
-          title="All Tasks"
-          value={stats.tasks.pending}
-          icon={Settings}
-          href="/tasks/all"
-          accentColor="gray"
-        />
       </div>
 
       {/* Quick Actions */}
@@ -307,23 +291,6 @@ export default function AdminDashboard({ employeeId }: { employeeId: number }) {
         </Card>
         <RecentDocuments />
         <RecentNotifications employeeId={employeeId} />
-      </div>
-
-      {/* Budget & Finance */}
-      <div className="grid gap-6">
-        <Card className="border border-amber-100 dark:border-gray-800 bg-[#FEF3C7] dark:bg-gray-900/50 shadow-sm rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-gray-900 dark:text-gray-50 font-bold">
-              Budget Breakdown
-            </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400 font-semibold">
-              Finance allocation across departments
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BudgetBreakdownChart />
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

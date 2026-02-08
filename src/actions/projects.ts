@@ -420,28 +420,6 @@ export async function getProjectExportData(id: number) {
     throw new Error("You do not have access to this project");
   }
 
-  // Get project tasks
-  const { tasks } = await import("@/db/schema");
-  const projectTasks = await db.query.tasks.findMany({
-    where: eq(tasks.projectId, id),
-    with: {
-      assignedTo: {
-        columns: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-      assignedBy: {
-        columns: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: (tasks, { desc }) => [desc(tasks.createdAt)],
-  });
-
   // Calculate metrics
   const totalExpenses = project.expenses.reduce(
     (sum, exp) => sum + (exp.amount ?? 0),
@@ -475,7 +453,6 @@ export async function getProjectExportData(id: number) {
     creator: project.creator,
     members: project.members.map((m) => m.employee),
     milestones: project.milestones,
-    tasks: projectTasks,
     expenses: project.expenses,
     metrics: {
       totalExpenses,
