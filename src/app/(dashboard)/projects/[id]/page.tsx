@@ -26,7 +26,6 @@ import {
 import { ProjectHeader } from "@/components/projects/project-header";
 import { getProject } from "@/actions/projects";
 import { getUser } from "@/actions/auth/dal";
-import ProjectTaskBoard from "@/components/projects/tasks/project-task-board";
 import { toast } from "sonner";
 
 type Milestone = {
@@ -148,9 +147,8 @@ export default function ProjectDetailPage({
     currentUser?.role?.toLowerCase() === "admin" ||
     currentUser?.department?.toLowerCase() === "admin";
   const isCreator = project?.creatorId === currentUser?.id;
-  const isSupervisor = project?.supervisorId === currentUser?.id;
+  const _isSupervisor = project?.supervisorId === currentUser?.id;
   const isEditable = isAdmin || isCreator;
-  const canManageTasks = isEditable || isSupervisor;
 
   async function saveMilestone() {
     if (!title || !dueDate) return;
@@ -315,23 +313,6 @@ export default function ProjectDetailPage({
     );
   }
 
-  const projectMembersList = project?.members.map((m) => m.employee) || [];
-  // Also include supervisor and creator in the members list for task assignment
-  const allMembers = [...projectMembersList];
-  if (
-    project?.supervisor &&
-    project.supervisorId !== null &&
-    !allMembers.find((m) => m.id === project.supervisorId)
-  ) {
-    allMembers.push({
-      id: project.supervisorId,
-      name: project.supervisor.name,
-    });
-  }
-  if (project?.creator && !allMembers.find((m) => m.id === project.creatorId)) {
-    allMembers.push({ id: project.creatorId, name: project.creator.name });
-  }
-
   return (
     <div className="space-y-6 p-2 max-w-7xl mx-auto animate-in fade-in duration-500">
       <Button
@@ -395,20 +376,6 @@ export default function ProjectDetailPage({
         >
           Milestones
           {activeTab === "milestones" && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("tasks")}
-          className={`pb-3 text-sm font-medium transition-colors relative ${
-            activeTab === "tasks"
-              ? "text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Tasks
-          {activeTab === "tasks" && (
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
           )}
         </button>
@@ -551,17 +518,6 @@ export default function ProjectDetailPage({
                 ))
               )}
             </div>
-          </div>
-        )}
-
-        {activeTab === "tasks" && (
-          <div className="animate-in fade-in duration-300">
-            <ProjectTaskBoard
-              projectId={projectId}
-              members={allMembers}
-              milestones={milestones}
-              isEditable={canManageTasks}
-            />
           </div>
         )}
 

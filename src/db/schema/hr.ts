@@ -11,10 +11,6 @@ import {
   boolean,
   numeric,
 } from "drizzle-orm/pg-core";
-import { tasks } from "./tasks/tasks";
-import { taskSubmissions } from "./tasks/taskSubmissions";
-import { taskReviews } from "./tasks/tasksReviews";
-
 export const employmentTypeEnum = pgEnum("employment_type", [
   "Full-time",
   "Part-time",
@@ -243,18 +239,6 @@ export const employeeRelations = relations(employees, ({ one, many }) => ({
     fields: [employees.managerId],
     references: [employees.id],
   }),
-
-  tasksAssigned: many(tasks, {
-    relationName: "assignedTo",
-  }),
-
-  tasksCreated: many(tasks, {
-    relationName: "assignedBy",
-  }),
-
-  taskSubmissions: many(taskSubmissions),
-
-  taskReviewsGiven: many(taskReviews),
 
   leaveApplications: many(leaveApplications),
   leaveBalances: many(leaveBalances),

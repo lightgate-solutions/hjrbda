@@ -38,7 +38,7 @@ export async function GET(
 }
 
 function generateCSV(data: Awaited<ReturnType<typeof getProjectExportData>>) {
-  const rows: Record<string, any>[] = [];
+  const rows: Record<string, string | number | undefined>[] = [];
 
   // Project Overview Section
   rows.push({
@@ -126,28 +126,6 @@ function generateCSV(data: Awaited<ReturnType<typeof getProjectExportData>>) {
           ? new Date(milestone.dueDate).toLocaleDateString()
           : "N/A",
         extra: milestone.completed ? "Completed" : "Pending",
-      });
-    }
-    rows.push({ section: "", field: "", value: "" });
-  }
-
-  // Tasks Section
-  if (data.tasks.length > 0) {
-    rows.push({ section: "TASKS", field: "", value: "" });
-    rows.push({
-      section: "",
-      field: "Title",
-      value: "Status",
-      extra: "Priority",
-      extra2: "Assigned To",
-    });
-    for (const task of data.tasks) {
-      rows.push({
-        section: "",
-        field: task.title,
-        value: task.status,
-        extra: task.priority,
-        extra2: task.assignedTo?.name || "N/A",
       });
     }
     rows.push({ section: "", field: "", value: "" });
@@ -249,7 +227,10 @@ async function generatePDF(
     styles: { fontSize: 10 },
   });
 
-  yPosition = (doc as any).lastAutoTable.finalY + 15;
+  const docWithTable = doc as typeof doc & {
+    lastAutoTable?: { finalY: number };
+  };
+  yPosition = (docWithTable.lastAutoTable?.finalY ?? yPosition) + 15;
 
   // Project Members
   if (data.members.length > 0) {
@@ -271,7 +252,7 @@ async function generatePDF(
       styles: { fontSize: 9 },
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + 15;
+    yPosition = (docWithTable.lastAutoTable?.finalY ?? yPosition) + 15;
   }
 
   // Milestones
@@ -301,36 +282,7 @@ async function generatePDF(
       styles: { fontSize: 9 },
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + 15;
-  }
-
-  // Tasks
-  if (data.tasks.length > 0) {
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
-    }
-
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Tasks", 14, yPosition);
-    yPosition += 7;
-
-    autoTable(doc, {
-      startY: yPosition,
-      head: [["Title", "Status", "Priority", "Assigned To"]],
-      body: data.tasks.map((task) => [
-        task.title,
-        task.status,
-        task.priority,
-        task.assignedTo?.name || "N/A",
-      ]),
-      theme: "striped",
-      headStyles: { fillColor: [155, 89, 182] },
-      styles: { fontSize: 8 },
-    });
-
-    yPosition = (doc as any).lastAutoTable.finalY + 15;
+    yPosition = (docWithTable.lastAutoTable?.finalY ?? yPosition) + 15;
   }
 
   // Expenses
