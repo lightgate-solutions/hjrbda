@@ -1,6 +1,10 @@
+/** biome-ignore-all lint/a11y/noStaticElementInteractions: <> */
+/** biome-ignore-all lint/a11y/useKeyWithClickEvents: <> */
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import {
@@ -47,6 +51,7 @@ type Project = {
 };
 
 export function ProjectsTable() {
+  const router = useRouter();
   const [items, setItems] = useState<Project[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -250,7 +255,11 @@ export function ProjectsTable() {
                 </TableRow>
               ) : (
                 items.map((p) => (
-                  <TableRow key={p.id} className="group">
+                  <TableRow
+                    key={p.id}
+                    className="group cursor-pointer"
+                    onClick={() => router.push(`/projects/${p.id}`)}
+                  >
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell>{p.code}</TableCell>
                     <TableCell>{p.location || "—"}</TableCell>
@@ -270,8 +279,15 @@ export function ProjectsTable() {
                         );
                       })()}
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <a href={`/projects/${p.id}`} title="View">
+                    <TableCell
+                      className="text-right space-x-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <a
+                        href={`/projects/${p.id}`}
+                        title="View"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Button
                           variant="ghost"
                           size="icon"
@@ -293,6 +309,7 @@ export function ProjectsTable() {
                                 className="h-8 w-8"
                                 aria-label="Edit project"
                                 title="Edit"
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -302,7 +319,10 @@ export function ProjectsTable() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => onDelete(p.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(p.id);
+                            }}
                             aria-label="Delete project"
                             title="Delete"
                           >
@@ -327,7 +347,8 @@ export function ProjectsTable() {
             items.map((p) => (
               <div
                 key={p.id}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/50"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/50 cursor-pointer"
+                onClick={() => router.push(`/projects/${p.id}`)}
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between">
@@ -364,12 +385,15 @@ export function ProjectsTable() {
                   <div className="text-xs text-muted-foreground">
                     Created {new Date(p.createdAt).toLocaleDateString()}
                   </div>
-                  <div className="flex gap-1">
-                    <a href={`/projects/${p.id}`} title="View">
+                  <div
+                    className="flex gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Link href={`/projects/${p.id}`} title="View">
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Eye className="h-4 w-4" />
                       </Button>
-                    </a>
+                    </Link>
                     {canEdit(p) && (
                       <>
                         <ProjectFormDialog
@@ -380,6 +404,7 @@ export function ProjectsTable() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -389,7 +414,10 @@ export function ProjectsTable() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => onDelete(p.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(p.id);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

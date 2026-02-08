@@ -27,6 +27,7 @@ import { ProjectHeader } from "@/components/projects/project-header";
 import { getProject } from "@/actions/projects";
 import { getUser } from "@/actions/auth/dal";
 import { toast } from "sonner";
+import { ProjectsPageSkeleton } from "@/components/skeletons";
 
 type Milestone = {
   id: number;
@@ -306,11 +307,7 @@ export default function ProjectDetailPage({
   const [activeTab, setActiveTab] = useState("milestones");
 
   if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-white">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-      </div>
-    );
+    return <ProjectsPageSkeleton />;
   }
 
   return (
