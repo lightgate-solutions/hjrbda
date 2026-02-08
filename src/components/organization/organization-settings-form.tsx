@@ -1,27 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  updateOrganization,
-  uploadOrganizationLogo,
-} from "@/actions/organization";
+import { uploadOrganizationLogo } from "@/actions/organization";
 import { useRouter } from "next/navigation";
 import { Upload, X } from "lucide-react";
 import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
-
-const organizationFormSchema = z.object({
-  name: z.string().min(1, "Organization name is required"),
-});
-
-type OrganizationFormValues = z.infer<typeof organizationFormSchema>;
 
 interface OrganizationSettingsFormProps {
   organization: {
@@ -38,19 +25,11 @@ export default function OrganizationSettingsForm({
   organization,
 }: OrganizationSettingsFormProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(
     organization?.logoUrl || null,
   );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  const form = useForm<OrganizationFormValues>({
-    resolver: zodResolver(organizationFormSchema),
-    defaultValues: {
-      name: organization?.name || "",
-    },
-  });
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,36 +125,11 @@ export default function OrganizationSettingsForm({
     setSelectedFile(null);
   };
 
-  const onSubmit = async (data: OrganizationFormValues) => {
-    setIsSubmitting(true);
-
-    try {
-      const result = await updateOrganization({
-        name: data.name,
-        logoUrl: organization?.logoUrl,
-        logoKey: organization?.logoKey,
-      });
-
-      if (result.error) {
-        toast.error(result.error.reason);
-        return;
-      }
-
-      toast.success("Organization settings updated successfully");
-      router.refresh();
-    } catch (error) {
-      console.error("Error updating organization:", error);
-      toast.error("Failed to update organization settings");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="space-y-8">
       {/* Logo Upload Section */}
       <div className="rounded-lg border p-6">
-        <h2 className="text-xl font-semibold mb-4">Organization Logo</h2>
+        <h2 className=" font-semibold mb-4">Organization Logo</h2>
         <div className="space-y-4">
           {logoPreview && (
             <div className="relative w-48 h-48 border rounded-lg overflow-hidden bg-muted">
@@ -235,40 +189,6 @@ export default function OrganizationSettingsForm({
           </p>
         </div>
       </div>
-
-      {/* Organization Name Section */}
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="rounded-lg border p-6"
-      >
-        <h2 className="text-xl font-semibold mb-4">Organization Information</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Organization Name</Label>
-            <Input
-              id="name"
-              {...form.register("name")}
-              placeholder="Enter organization name"
-            />
-            {form.formState.errors.name && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.name.message}
-              </p>
-            )}
-          </div>
-
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Spinner className="mr-2 h-4 w-4" />
-                Saving...
-              </>
-            ) : (
-              "Save Changes"
-            )}
-          </Button>
-        </div>
-      </form>
     </div>
   );
 }
