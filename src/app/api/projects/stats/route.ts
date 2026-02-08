@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     const rows = await db.select().from(projects).where(where);
     const total = rows.length;
-    const actual = rows.reduce((acc, p) => acc + (p.budgetActual ?? 0), 0);
+    const actual = rows.reduce((acc, p) => acc + (p.budgetPlanned ?? 0), 0);
 
     let expensesTotal = 0;
     if (rows.length > 0) {

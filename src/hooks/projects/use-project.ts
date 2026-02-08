@@ -21,7 +21,7 @@ interface Milestone {
   title: string;
   description: string | null;
   dueDate: Date | null;
-  completed: boolean;
+  completed: number;
   createdAt: Date;
   updatedAt: Date;
 }

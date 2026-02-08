@@ -3,34 +3,10 @@ import { createObjectCsvStringifier } from "csv-writer";
 import { getOrganization } from "@/actions/organization";
 import { addPdfHeader } from "@/lib/pdf-utils";
 import { db } from "@/db";
-import { projects, projectMembers } from "@/db/schema";
+import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getUser } from "@/actions/auth/dal";
-
-async function checkProjectAccess(
-  projectId: number,
-  userId: number,
-  isAdmin: boolean,
-) {
-  if (isAdmin) return true;
-
-  const project = await db.query.projects.findFirst({
-    where: eq(projects.id, projectId),
-    with: {
-      members: {
-        where: eq(projectMembers.employeeId, userId),
-      },
-    },
-  });
-
-  if (!project) return false;
-
-  return (
-    project.creatorId === userId ||
-    project.supervisorId === userId ||
-    project.members.length > 0
-  );
-}
+import { checkProjectAccess } from "@/lib/project-access";
 
 export async function GET(
   request: NextRequest,
@@ -214,7 +190,7 @@ type ExportData = {
     title: string;
     description: string | null;
     dueDate: Date | string | null;
-    completed: number | boolean;
+    completed: number;
   }[];
   expenses: {
     title: string;

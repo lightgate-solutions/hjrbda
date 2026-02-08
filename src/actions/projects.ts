@@ -31,34 +31,6 @@ const projectSchema = z.object({
 
 export type ProjectInput = z.infer<typeof projectSchema>;
 
-async function _checkProjectAccess(
-  projectId: number,
-  employeeId: number,
-  role: string,
-  department: string,
-) {
-  const isAdmin =
-    role.toLowerCase() === "admin" || department.toLowerCase() === "admin";
-  if (isAdmin) return true;
-
-  const project = await db.query.projects.findFirst({
-    where: eq(projects.id, projectId),
-    with: {
-      members: {
-        where: eq(projectMembers.employeeId, employeeId),
-      },
-    },
-  });
-
-  if (!project) return false;
-
-  return (
-    project.creatorId === employeeId ||
-    project.supervisorId === employeeId ||
-    project.members.length > 0
-  );
-}
-
 export async function listProjects(params: {
   page?: number;
   limit?: number;

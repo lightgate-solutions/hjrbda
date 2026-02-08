@@ -104,6 +104,27 @@ export async function PUT(
 
     const { id: projectId } = await params;
     const id = Number(projectId);
+
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
+    // Only admin or project creator can update
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, id),
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (!isAdmin && project.creatorId !== user.id) {
+      return NextResponse.json(
+        { error: "Only the creator or an admin can edit project details" },
+        { status: 403 },
+      );
+    }
+
     const body = await request.json();
     const {
       name,
@@ -157,12 +178,31 @@ export async function DELETE(
 
     const { id: projectId } = await params;
     const id = Number(projectId);
+
+    const isAdmin =
+      user.role.toLowerCase() === "admin" ||
+      user.department.toLowerCase() === "admin";
+
+    // Only admin or project creator can delete
+    const project = await db.query.projects.findFirst({
+      where: eq(projects.id, id),
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (!isAdmin && project.creatorId !== user.id) {
+      return NextResponse.json(
+        { error: "Only the creator or an admin can delete projects" },
+        { status: 403 },
+      );
+    }
+
     const [deleted] = await db
       .delete(projects)
       .where(eq(projects.id, id))
       .returning();
-    if (!deleted)
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting project:", error);

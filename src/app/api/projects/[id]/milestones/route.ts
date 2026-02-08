@@ -1,33 +1,9 @@
 import { db } from "@/db";
-import { milestones, projects, projectMembers } from "@/db/schema";
+import { milestones } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { getUser } from "@/actions/auth/dal";
-
-async function checkProjectAccess(
-  projectId: number,
-  userId: number,
-  isAdmin: boolean,
-) {
-  if (isAdmin) return true;
-
-  const project = await db.query.projects.findFirst({
-    where: eq(projects.id, projectId),
-    with: {
-      members: {
-        where: eq(projectMembers.employeeId, userId),
-      },
-    },
-  });
-
-  if (!project) return false;
-
-  return (
-    project.creatorId === userId ||
-    project.supervisorId === userId ||
-    project.members.length > 0
-  );
-}
+import { checkProjectAccess } from "@/lib/project-access";
 
 export async function GET(
   _request: NextRequest,

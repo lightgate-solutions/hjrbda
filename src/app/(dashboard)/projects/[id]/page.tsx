@@ -35,7 +35,7 @@ type Milestone = {
   title: string;
   description: string | null;
   dueDate: Date | string | null;
-  completed: boolean;
+  completed: number;
 };
 
 type ProjectMember = {

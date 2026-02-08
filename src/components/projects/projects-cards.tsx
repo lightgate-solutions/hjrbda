@@ -70,7 +70,7 @@ export function ProjectsCards() {
       <Card className="relative overflow-hidden border-none bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg transition-all hover:scale-[1.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-emerald-100">
-            Budget
+            Budget Planned
           </CardTitle>
           <div className="rounded-full bg-white/20 p-2">
             <Banknote className="h-4 w-4 text-white" />
