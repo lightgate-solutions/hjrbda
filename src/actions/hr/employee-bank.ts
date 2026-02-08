@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { employeesBank } from "@/db/schema/hr";
 import { eq } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
-import { z } from "zod";
+import * as z from "zod";
 import { requireAuth, requireHROrAdmin } from "@/actions/auth/dal";
 
 const bankDetailsSchema = z.object({

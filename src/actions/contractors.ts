@@ -4,12 +4,12 @@ import { db } from "@/db";
 import { contractors } from "@/db/schema";
 import { asc, desc, eq, ilike, or } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireManager } from "@/actions/auth/dal";
-import { z } from "zod";
+import * as z from "zod";
 import { revalidatePath } from "next/cache";
 
 const contractorSchema = z.object({
   name: z.string().min(1, "Name is required").max(255),
-  email: z.string().email().nullable().optional(),
+  email: z.email().nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
   address: z.string().max(500).nullable().optional(),
   specialization: z.string().max(255).nullable().optional(),

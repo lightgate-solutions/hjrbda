@@ -3,7 +3,7 @@
 import { db } from "@/db";
 import { employmentHistory } from "@/db/schema/hr";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
+import * as z from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAuth, requireHROrAdmin } from "@/actions/auth/dal";
 import { toast } from "sonner";

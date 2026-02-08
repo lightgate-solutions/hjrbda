@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm";
 import { createNotification } from "./notification/notification";
 import { requireAuth } from "@/actions/auth/dal";
-import { z } from "zod";
+import * as z from "zod";
 import { revalidatePath } from "next/cache";
 
 const projectSchema = z.object({

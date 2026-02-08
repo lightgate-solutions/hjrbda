@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: <> */
 "use client";
 
-import { z } from "zod";
+import * as z from "zod";
 import { useForm } from "react-hook-form";
 import {
   Form,

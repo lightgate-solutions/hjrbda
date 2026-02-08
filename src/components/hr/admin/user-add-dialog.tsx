@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { z } from "zod";
+import * as z from "zod";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";

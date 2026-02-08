@@ -5,7 +5,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2Client } from "@/lib/r2Client";
 import { v4 as uuidv4 } from "uuid";
-import { z } from "zod";
+import * as z from "zod";
 
 const uploadRequestSchema = z.object({
   filename: z.string(),
