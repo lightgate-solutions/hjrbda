@@ -12,7 +12,6 @@ import {
   Newspaper,
   Bug,
   Logs,
-  Timer,
 } from "lucide-react";
 import {
   Sidebar,
@@ -44,11 +43,6 @@ const data = {
       url: "/",
       icon: TvMinimal,
       isActive: false,
-    },
-    {
-      title: "Attendance",
-      url: "/hr/attendance",
-      icon: Timer,
     },
     {
       title: "Documents",
@@ -106,14 +100,6 @@ const data = {
         {
           title: "Employees",
           url: "/hr/employees",
-        },
-        {
-          title: "Ask HR",
-          url: "/hr/ask-hr",
-        },
-        {
-          title: "Leave Management",
-          url: "/hr/leaves",
         },
       ],
     },
@@ -261,7 +247,7 @@ export function AppSidebar({
     };
 
     allItems.forEach((item) => {
-      if (["Dashboard", "Attendance"].includes(item.title)) {
+      if (["Dashboard"].includes(item.title)) {
         groups.overview.push(item);
       } else if (["Documents", "Mail", "Projects"].includes(item.title)) {
         groups.modules.push(item);

@@ -62,7 +62,7 @@ const exportCategories: ExportCategory[] = [
   {
     id: "hr",
     title: "Human Resources",
-    description: "Employee records, attendance, and HR data",
+    description: "Employee records and HR data",
     icon: <FileText className="h-5 w-5" />,
     items: [
       {
@@ -81,30 +81,6 @@ const exportCategories: ExportCategory[] = [
         id: "employee-documents",
         label: "Employee Documents",
         description: "Uploaded employee documents",
-        supportsDateFilter: true,
-      },
-      {
-        id: "attendance",
-        label: "Attendance Records",
-        description: "Daily attendance logs",
-        supportsDateFilter: true,
-      },
-      {
-        id: "leave-applications",
-        label: "Leave Applications",
-        description: "Leave requests and approvals",
-        supportsDateFilter: true,
-      },
-      {
-        id: "leave-balances",
-        label: "Leave Balances",
-        description: "Current leave balances",
-        supportsDateFilter: false,
-      },
-      {
-        id: "ask-hr",
-        label: "Ask HR Questions",
-        description: "Employee HR inquiries",
         supportsDateFilter: true,
       },
     ],

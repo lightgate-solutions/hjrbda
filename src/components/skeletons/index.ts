@@ -19,7 +19,6 @@ export { DocumentsOverviewSkeleton } from "./documents/documents-overview-skelet
 export { DocumentsFolderSkeleton } from "./documents/documents-folder-skeleton";
 export { ProjectsPageSkeleton } from "./projects/projects-page-skeleton";
 export { NewsGridSkeleton } from "./news/news-grid-skeleton";
-export { LeavesTableSkeleton } from "./hr/leaves-table-skeleton";
 // Shared skeletons
 export { SettingsPageSkeleton } from "./shared/settings-page-skeleton";
 export { SimpleListSkeleton } from "./shared/simple-list-skeleton";
