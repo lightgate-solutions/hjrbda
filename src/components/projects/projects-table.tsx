@@ -43,7 +43,9 @@ type Project = {
   name: string;
   code: string;
   description: string | null;
-  location: string | null;
+  street: string;
+  city: string;
+  state: string;
   status: string;
   supervisorId: number | null;
   creatorId: number | null;
@@ -243,7 +245,10 @@ export function ProjectsTable() {
                   >
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell>{p.code}</TableCell>
-                    <TableCell>{p.location || "—"}</TableCell>
+                    <TableCell>
+                      {[p.street, p.city, p.state].filter(Boolean).join(", ") ||
+                        "—"}
+                    </TableCell>
                     <TableCell>
                       {(() => {
                         const status = (p.status ?? "pending") as string;
@@ -358,7 +363,11 @@ export function ProjectsTable() {
                   <div className="mt-4 space-y-2 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <MapPinIcon />
-                      <span>{p.location || "No location"}</span>
+                      <span>
+                        {[p.street, p.city, p.state]
+                          .filter(Boolean)
+                          .join(", ") || "No location"}
+                      </span>
                     </div>
                   </div>
                 </div>

@@ -610,6 +610,17 @@ export default function ProjectDetailPage({
               milestoneFilter={photoMilestoneFilter}
               onMilestoneChange={setPhotoMilestoneFilter}
               onRefetch={refetchPhotos}
+              projectLocation={
+                project?.latitude && project?.longitude
+                  ? {
+                      latitude: Number(project.latitude),
+                      longitude: Number(project.longitude),
+                      label: [project.street, project.city, project.state]
+                        .filter(Boolean)
+                        .join(", "),
+                    }
+                  : null
+              }
             />
 
             <PhotoCaptureDialog

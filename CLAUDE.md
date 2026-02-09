@@ -145,13 +145,13 @@ HJRBDA follows a modular architecture organized by domain/feature:
 
 ### State Management
 
-- Server state: React Query and SWR
+- Server state: React Query
 - Form state: React Hook Form with Zod validation
 - UI state: React's built-in state management
 
 ## Technical Stack Details
 
-- **Framework**: Next.js 15.5.4 with App Router
+- **Framework**: Next.js 15.5.10 with App Router
 - **UI**: React 19.1.0 with TypeScript 5
 - **Styling**: TailwindCSS 4 with Shadcn/ui components
 - **Database**: PostgreSQL 16 with Drizzle ORM
@@ -160,4 +160,3 @@ HJRBDA follows a modular architecture organized by domain/feature:
 - **Data Fetching**: React Query 5.90 and SWR 2.3
 - **Code Quality**: Biome 2.1.4 (replaces ESLint/Prettier)
 - **Package Manager**: PNPM
-- **Containerization**: Docker for PostgreSQL

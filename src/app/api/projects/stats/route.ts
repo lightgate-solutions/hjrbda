@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
       where = or(
         ilike(projects.name, `%${q}%`),
         ilike(projects.code, `%${q}%`),
-        ilike(projects.location, `%${q}%`),
+        ilike(projects.street, `%${q}%`),
+        ilike(projects.city, `%${q}%`),
+        ilike(projects.state, `%${q}%`),
       );
     }
 

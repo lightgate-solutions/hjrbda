@@ -14,7 +14,9 @@ type Project = {
   name: string;
   code: string;
   description: string | null;
-  location: string | null;
+  street: string;
+  city: string;
+  state: string;
   status: string;
   budgetPlanned: number | null;
   budgetActual: number | null;
@@ -62,7 +64,11 @@ export function ProjectHeader({
               <MapPin className="h-4 w-4" />
               Location
             </div>
-            <div className="font-medium text-sm">{project.location ?? "—"}</div>
+            <div className="font-medium text-sm">
+              {[project.street, project.city, project.state]
+                .filter(Boolean)
+                .join(", ") || "—"}
+            </div>
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">

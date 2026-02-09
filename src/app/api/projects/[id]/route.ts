@@ -130,7 +130,11 @@ export async function PUT(
       name,
       code,
       description,
-      location,
+      street,
+      city,
+      state: projectState,
+      latitude,
+      longitude,
       supervisorId,
       budgetPlanned,
       budgetActual,
@@ -143,7 +147,21 @@ export async function PUT(
         name,
         code,
         description,
-        location,
+        street,
+        city,
+        state: projectState,
+        latitude:
+          latitude !== undefined
+            ? latitude
+              ? String(latitude)
+              : null
+            : undefined,
+        longitude:
+          longitude !== undefined
+            ? longitude
+              ? String(longitude)
+              : null
+            : undefined,
         supervisorId: supervisorId ?? null,
         budgetPlanned:
           budgetPlanned !== undefined ? Number(budgetPlanned) : undefined,

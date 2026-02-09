@@ -44,6 +44,11 @@ interface ProjectPhotosGalleryProps {
   milestoneFilter: string;
   onMilestoneChange: (milestoneId: string) => void;
   onRefetch: () => void;
+  projectLocation?: {
+    latitude: number;
+    longitude: number;
+    label?: string;
+  } | null;
 }
 
 export function ProjectPhotosGallery({
@@ -57,6 +62,7 @@ export function ProjectPhotosGallery({
   milestoneFilter,
   onMilestoneChange,
   onRefetch,
+  projectLocation,
 }: ProjectPhotosGalleryProps) {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedPhoto, setSelectedPhoto] = useState<ProjectPhoto | null>(null);
@@ -199,7 +205,11 @@ export function ProjectPhotosGallery({
       )}
 
       {!isLoading && photos.length > 0 && viewMode === "map" && (
-        <ProjectPhotosMap photos={photos} onPhotoClick={setSelectedPhoto} />
+        <ProjectPhotosMap
+          photos={photos}
+          onPhotoClick={setSelectedPhoto}
+          projectLocation={projectLocation}
+        />
       )}
 
       <PhotoDetailDialog

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +27,12 @@ import { createProject, updateProject } from "@/actions/projects";
 import { getUser } from "@/actions/auth/dal";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { toast } from "sonner";
+import { formatCoordinate } from "@/lib/geo-utils";
+
+const LocationPickerMap = dynamic(
+  () => import("./location-picker-map").then((m) => m.LocationPickerMap),
+  { ssr: false },
+);
 
 type Supervisor = { id: number; name: string; email: string };
 type Contractor = { id: number; name: string };
@@ -44,7 +51,11 @@ type Props = {
     name: string;
     code: string;
     description: string | null;
-    location: string | null;
+    street: string;
+    city: string;
+    state: string;
+    latitude?: string | null;
+    longitude?: string | null;
     supervisorId: number | null;
     contractorId?: number | null;
     members?: { employeeId: number }[];
@@ -60,7 +71,16 @@ export function ProjectFormDialog({ trigger, initial, onCompleted }: Props) {
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [location, setLocation] = useState(initial?.location ?? "");
+  const [street, setStreet] = useState(initial?.street ?? "");
+  const [city, setCity] = useState(initial?.city ?? "");
+  const [state, setState] = useState(initial?.state ?? "");
+  const [latitude, setLatitude] = useState<string | null>(
+    initial?.latitude ?? null,
+  );
+  const [longitude, setLongitude] = useState<string | null>(
+    initial?.longitude ?? null,
+  );
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const [budgetPlanned, setBudgetPlanned] = useState<string>("0");
   const [budgetActual, setBudgetActual] = useState<string>("0");
   const [supervisorId, setSupervisorId] = useState<string>(
@@ -106,7 +126,12 @@ export function ProjectFormDialog({ trigger, initial, onCompleted }: Props) {
     if (!open) return;
     setName(initial?.name ?? "");
     setDescription(initial?.description ?? "");
-    setLocation(initial?.location ?? "");
+    setStreet(initial?.street ?? "");
+    setCity(initial?.city ?? "");
+    setState(initial?.state ?? "");
+    setLatitude(initial?.latitude ?? null);
+    setLongitude(initial?.longitude ?? null);
+    setShowMapPicker(false);
     setSupervisorId(initial?.supervisorId ? String(initial.supervisorId) : "");
     setContractorId(initial?.contractorId ? String(initial.contractorId) : "");
     setSelectedMembers(
@@ -120,13 +145,17 @@ export function ProjectFormDialog({ trigger, initial, onCompleted }: Props) {
   }, [initial, open]);
 
   async function onSubmit() {
-    if (!name || !status) return;
+    if (!name || !status || !street || !city || !state) return;
 
     startTransition(async () => {
       const payload = {
         name,
         description: description || null,
-        location: location || null,
+        street,
+        city,
+        state,
+        latitude: latitude || null,
+        longitude: longitude || null,
         supervisorId: supervisorId ? Number(supervisorId) : null,
         contractorId: contractorId ? Number(contractorId) : null,
         memberIds: selectedMembers.map(Number),
@@ -170,19 +199,81 @@ export function ProjectFormDialog({ trigger, initial, onCompleted }: Props) {
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={description ?? ""}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="street">Street *</Label>
               <Input
-                id="location"
-                value={location ?? ""}
-                onChange={(e) => setLocation(e.target.value)}
+                id="street"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="city">City *</Label>
+              <Input
+                id="city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="state">State *</Label>
+              <Input
+                id="state"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label>GPS Coordinates</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMapPicker(!showMapPicker)}
+              >
+                {showMapPicker ? "Hide Map" : "Pick on Map"}
+              </Button>
+            </div>
+            {showMapPicker && (
+              <div className="h-[300px] rounded-lg overflow-hidden border">
+                <LocationPickerMap
+                  initialLat={latitude ? Number(latitude) : undefined}
+                  initialLng={longitude ? Number(longitude) : undefined}
+                  onLocationSelect={(lat, lng, address) => {
+                    setLatitude(String(lat));
+                    setLongitude(String(lng));
+                    if (address) {
+                      if (address.street) setStreet(address.street);
+                      if (address.city) setCity(address.city);
+                      if (address.state) setState(address.state);
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {latitude && longitude && (
+              <p className="text-xs text-muted-foreground">
+                Selected: {formatCoordinate(latitude)},{" "}
+                {formatCoordinate(longitude)}
+              </p>
+            )}
+          </div>
+          <div className="grid grid-cols-1 mt-2 sm:grid-cols-3 gap-4">
+            <div className="grid gap-2">
               <Label>Status *</Label>
               <Select value={status} onValueChange={(v) => setStatus(v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -192,16 +283,6 @@ export function ProjectFormDialog({ trigger, initial, onCompleted }: Props) {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description ?? ""}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Supervisor</Label>
               <Select

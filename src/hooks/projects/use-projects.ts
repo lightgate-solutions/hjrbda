@@ -18,7 +18,11 @@ interface Project {
   name: string;
   code: string;
   description: string | null;
-  location: string | null;
+  street: string;
+  city: string;
+  state: string;
+  latitude: string | null;
+  longitude: string | null;
   status: "pending" | "in-progress" | "completed";
   budgetPlanned: number | null;
   budgetActual: number | null;

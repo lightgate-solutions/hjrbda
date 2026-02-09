@@ -115,7 +115,9 @@ export async function GET(
         name: project.name,
         code: project.code,
         description: project.description,
-        location: project.location,
+        street: project.street,
+        city: project.city,
+        state: project.state,
         status: project.status,
         budgetPlanned: project.budgetPlanned,
         budgetActual: project.budgetActual,
@@ -159,7 +161,9 @@ type ExportData = {
     name: string;
     code: string;
     description: string | null;
-    location: string | null;
+    street: string;
+    city: string;
+    state: string;
     status: string;
     budgetPlanned: number | null;
     budgetActual: number | null;
@@ -230,7 +234,10 @@ function generateCSV(data: ExportData) {
   rows.push({
     section: "",
     field: "Location",
-    value: data.project.location || "N/A",
+    value:
+      [data.project.street, data.project.city, data.project.state]
+        .filter(Boolean)
+        .join(", ") || "N/A",
   });
   rows.push({ section: "", field: "Status", value: data.project.status });
   rows.push({
@@ -374,7 +381,12 @@ async function generatePDF(data: ExportData) {
     head: [["Field", "Value"]],
     body: [
       ["Description", data.project.description || "N/A"],
-      ["Location", data.project.location || "N/A"],
+      [
+        "Location",
+        [data.project.street, data.project.city, data.project.state]
+          .filter(Boolean)
+          .join(", ") || "N/A",
+      ],
       ["Status", data.project.status],
       ["Supervisor", data.supervisor?.name || "N/A"],
       ["Contractor", data.contractor?.name || "N/A"],

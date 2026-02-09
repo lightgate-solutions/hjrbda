@@ -21,7 +21,11 @@ import { revalidatePath } from "next/cache";
 const projectSchema = z.object({
   name: z.string().min(1, "Project name is required").max(255),
   description: z.string().max(1000).nullable().optional(),
-  location: z.string().max(255).nullable().optional(),
+  street: z.string().min(1, "Street is required").max(255),
+  city: z.string().min(1, "City is required").max(255),
+  state: z.string().min(1, "State is required").max(255),
+  latitude: z.union([z.string(), z.number()]).nullable().optional(),
+  longitude: z.union([z.string(), z.number()]).nullable().optional(),
   supervisorId: z.number().int().positive().nullable().optional(),
   contractorId: z.number().int().positive().nullable().optional(),
   budgetPlanned: z.number().nonnegative().optional(),
@@ -40,7 +44,9 @@ export async function listProjects(params: {
     | "name"
     | "code"
     | "description"
-    | "location"
+    | "street"
+    | "city"
+    | "state"
     | "status"
     | "budgetPlanned"
     | "budgetActual"
@@ -65,7 +71,9 @@ export async function listProjects(params: {
     ? or(
         ilike(projects.name, `%${q}%`),
         ilike(projects.code, `%${q}%`),
-        ilike(projects.location, `%${q}%`),
+        ilike(projects.street, `%${q}%`),
+        ilike(projects.city, `%${q}%`),
+        ilike(projects.state, `%${q}%`),
       )
     : undefined;
 
@@ -179,7 +187,15 @@ export async function createProject(input: ProjectInput) {
         name: validatedInput.name,
         code: generatedCode,
         description: validatedInput.description ?? null,
-        location: validatedInput.location ?? null,
+        street: validatedInput.street,
+        city: validatedInput.city,
+        state: validatedInput.state,
+        latitude: validatedInput.latitude
+          ? String(validatedInput.latitude)
+          : null,
+        longitude: validatedInput.longitude
+          ? String(validatedInput.longitude)
+          : null,
         supervisorId: validatedInput.supervisorId ?? null,
         contractorId: validatedInput.contractorId ?? null,
         creatorId: employee.id,
@@ -244,11 +260,26 @@ export async function updateProject(id: number, input: Partial<ProjectInput>) {
   }
 
   try {
-    const { memberIds, ...projectData } = input;
+    const { memberIds, latitude, longitude, ...projectData } = input;
 
     const [row] = await db
       .update(projects)
-      .set({ ...projectData, updatedAt: new Date() })
+      .set({
+        ...projectData,
+        latitude:
+          latitude !== undefined
+            ? latitude
+              ? String(latitude)
+              : null
+            : undefined,
+        longitude:
+          longitude !== undefined
+            ? longitude
+              ? String(longitude)
+              : null
+            : undefined,
+        updatedAt: new Date(),
+      })
       .where(eq(projects.id, id))
       .returning();
 
@@ -413,7 +444,9 @@ export async function getProjectExportData(id: number) {
       name: project.name,
       code: project.code,
       description: project.description,
-      location: project.location,
+      street: project.street,
+      city: project.city,
+      state: project.state,
       status: project.status,
       budgetPlanned: project.budgetPlanned,
       budgetActual: project.budgetActual,

@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
       where = or(
         ilike(projects.name, `%${q}%`),
         ilike(projects.code, `%${q}%`),
-        ilike(projects.location, `%${q}%`),
+        ilike(projects.street, `%${q}%`),
+        ilike(projects.city, `%${q}%`),
+        ilike(projects.state, `%${q}%`),
       );
     }
 
@@ -109,7 +111,9 @@ export async function GET(request: NextRequest) {
       name: projects.name,
       code: projects.code,
       description: projects.description,
-      location: projects.location,
+      street: projects.street,
+      city: projects.city,
+      state: projects.state,
       status: projects.status,
       budgetPlanned: projects.budgetPlanned,
       budgetActual: projects.budgetActual,
@@ -176,7 +180,11 @@ export async function POST(request: NextRequest) {
     const {
       name,
       description,
-      location,
+      street,
+      city,
+      state: projectState,
+      latitude,
+      longitude,
       supervisorId,
       budgetPlanned,
       budgetActual,
@@ -200,7 +208,11 @@ export async function POST(request: NextRequest) {
         name,
         code: generatedCode,
         description,
-        location,
+        street: street || "",
+        city: city || "",
+        state: projectState || "",
+        latitude: latitude ? String(latitude) : null,
+        longitude: longitude ? String(longitude) : null,
         supervisorId: supervisorId ?? null,
         creatorId: user.id,
         budgetPlanned: Number(budgetPlanned) || 0,
