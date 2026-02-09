@@ -7,6 +7,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { ProjectPhoto } from "@/hooks/projects/use-project-photos";
 import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
 
 // Fix default marker icons in Leaflet + webpack/next.js
 const defaultIcon = L.icon({
@@ -87,9 +88,11 @@ export function ProjectPhotosMap({
             >
               <Popup>
                 <div className="w-48">
-                  <img
+                  <Image
                     src={photo.fileUrl}
                     alt={photo.note || photo.fileName}
+                    width={150}
+                    height={150}
                     className="w-full h-32 object-cover rounded mb-2"
                   />
                   <div className="space-y-1">

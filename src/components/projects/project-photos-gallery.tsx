@@ -14,6 +14,7 @@ import { MapPin, Map as MapIcon, Grid3X3, Loader2 } from "lucide-react";
 import type { ProjectPhoto } from "@/hooks/projects/use-project-photos";
 import { PhotoDetailDialog } from "./photo-detail-dialog";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 
 const ProjectPhotosMap = dynamic(
   () => import("./project-photos-map").then((m) => m.ProjectPhotosMap),
@@ -152,11 +153,13 @@ export function ProjectPhotosGallery({
                     className="group relative rounded-lg border overflow-hidden bg-card hover:shadow-md hover:border-primary/20 transition-all text-left"
                   >
                     <div className="aspect-square">
-                      <img
+                      <Image
                         src={photo.fileUrl}
                         alt={photo.note || photo.fileName}
                         className="h-full w-full object-cover"
                         loading="lazy"
+                        height={150}
+                        width={50}
                       />
                     </div>
                     <div className="p-2 space-y-1">

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import type { ProjectPhoto } from "@/hooks/projects/use-project-photos";
 import { formatCoordinate, formatAccuracy } from "@/lib/geo-utils";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 
 const PhotoLocationMiniMap = dynamic(
   () => import("./project-photos-map").then((m) => m.PhotoLocationMiniMap),
@@ -83,9 +84,11 @@ export function PhotoDetailDialog({
         <div className="space-y-4">
           {/* Full-size photo */}
           <div className="rounded-lg overflow-hidden border bg-black">
-            <img
+            <Image
               src={photo.fileUrl}
               alt={photo.note || photo.fileName}
+              width={150}
+              height={150}
               className="w-full max-h-[50vh] object-contain"
             />
           </div>

@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { getCurrentPosition, type GeoPosition } from "@/lib/geo-utils";
 import { savePhotoOffline } from "@/lib/offline-photo-store";
 import { useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 
 const CATEGORIES = [
   { value: "progress", label: "Progress" },
@@ -498,8 +499,10 @@ export function PhotoCaptureDialog({
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {photos.map((photo, i) => (
                     <div key={photo.previewUrl} className="relative shrink-0">
-                      <img
+                      <Image
                         src={photo.previewUrl}
+                        width={50}
+                        height={50}
                         alt={`Capture ${i + 1}`}
                         className="h-20 w-20 object-cover rounded-md border"
                       />

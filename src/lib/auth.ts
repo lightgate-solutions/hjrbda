@@ -28,6 +28,8 @@ export const auth = betterAuth({
       enabled: true,
       maxAge: 5 * 60, // Cache duration in seconds
     },
+    expiresIn: 60 * 60 * 24 * 30, // 7 days
+    updateAge: 60 * 60 * 24,
   },
   plugins: [nextCookies(), admin(), username()],
 });
