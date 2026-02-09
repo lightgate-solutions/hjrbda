@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import {
+  Camera,
   Calendar,
   ChevronLeft,
   Loader2,
@@ -26,8 +27,15 @@ import {
 import { ProjectHeader } from "@/components/projects/project-header";
 import { toast } from "sonner";
 import { ProjectsPageSkeleton } from "@/components/skeletons";
-import { useProject, useProjectExpenses } from "@/hooks/projects";
+import {
+  useProject,
+  useProjectExpenses,
+  useProjectPhotos,
+} from "@/hooks/projects";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { PhotoCaptureDialog } from "@/components/projects/photo-capture-dialog";
+import { ProjectPhotosGallery } from "@/components/projects/project-photos-gallery";
+import { OfflineSyncIndicator } from "@/components/projects/offline-sync-indicator";
 
 type Milestone = {
   id: number;
@@ -36,35 +44,6 @@ type Milestone = {
   description: string | null;
   dueDate: Date | string | null;
   completed: number;
-};
-
-type ProjectMember = {
-  employee: {
-    id: number;
-    name: string;
-  };
-};
-
-type Project = {
-  id: number;
-  name: string;
-  code: string;
-  description: string | null;
-  location: string | null;
-  status: string;
-  budgetPlanned: number | null;
-  budgetActual: number | null;
-  supervisorId: number | null;
-  supervisor?: { name: string; email: string } | null;
-  contractorId: number | null;
-  contractor?: { name: string } | null;
-  creatorId: number;
-  creator?: { name: string } | null;
-  members: ProjectMember[];
-  milestones: Milestone[];
-  expenses: Expense[];
-  createdAt: Date | string;
-  updatedAt: Date | string;
 };
 
 type Expense = {
@@ -110,6 +89,22 @@ export default function ProjectDetailPage({
     projectId,
     activeTab === "expenses",
   );
+
+  // Photos state
+  const [photoCaptureOpen, setPhotoCaptureOpen] = useState(false);
+  const [photoCategoryFilter, setPhotoCategoryFilter] = useState("all");
+  const [photoMilestoneFilter, setPhotoMilestoneFilter] = useState("all");
+
+  // Fetch photos only when photos tab is active
+  const {
+    data: photosData,
+    isLoading: photosLoading,
+    refetch: refetchPhotos,
+  } = useProjectPhotos(projectId, activeTab === "photos", {
+    category: photoCategoryFilter !== "all" ? photoCategoryFilter : undefined,
+    milestoneId:
+      photoMilestoneFilter !== "all" ? Number(photoMilestoneFilter) : undefined,
+  });
 
   // Handle unauthorized access
   useEffect(() => {
@@ -449,6 +444,20 @@ export default function ProjectDetailPage({
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("photos")}
+          className={`pb-3 text-sm font-medium transition-colors relative ${
+            activeTab === "photos"
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Photos
+          {activeTab === "photos" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full" />
+          )}
+        </button>
       </div>
 
       <div className="min-h-[400px]">
@@ -574,6 +583,41 @@ export default function ProjectDetailPage({
                 ))
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === "photos" && (
+          <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold">Project Photos</h2>
+                <OfflineSyncIndicator />
+              </div>
+              <Button size="sm" onClick={() => setPhotoCaptureOpen(true)}>
+                <Camera className="h-4 w-4 mr-2" />
+                Capture Photos
+              </Button>
+            </div>
+
+            <ProjectPhotosGallery
+              photos={photosData?.photos ?? []}
+              milestones={milestones.map((m) => ({ id: m.id, title: m.title }))}
+              isLoading={photosLoading}
+              projectId={projectId}
+              isEditable={isEditable}
+              categoryFilter={photoCategoryFilter}
+              onCategoryChange={setPhotoCategoryFilter}
+              milestoneFilter={photoMilestoneFilter}
+              onMilestoneChange={setPhotoMilestoneFilter}
+              onRefetch={refetchPhotos}
+            />
+
+            <PhotoCaptureDialog
+              projectId={projectId}
+              milestones={milestones.map((m) => ({ id: m.id, title: m.title }))}
+              open={photoCaptureOpen}
+              onOpenChange={setPhotoCaptureOpen}
+            />
           </div>
         )}
 

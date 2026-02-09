@@ -9,6 +9,7 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 import { employees } from "./hr";
+import { projectPhotos } from "./project-photos";
 
 // Define enum ONCE at module scope so Drizzle emits CREATE TYPE before using it
 export const projectStatusEnum = pgEnum("project_status", [
@@ -96,6 +97,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   members: many(projectMembers),
   milestones: many(milestones),
   expenses: many(expenses),
+  photos: many(projectPhotos),
 }));
 
 export const contractorsRelations = relations(contractors, ({ many }) => ({
@@ -130,11 +132,12 @@ export const milestones = pgTable(
   (table) => [index("milestones_project_idx").on(table.projectId)],
 );
 
-export const milestonesRelations = relations(milestones, ({ one }) => ({
+export const milestonesRelations = relations(milestones, ({ one, many }) => ({
   project: one(projects, {
     fields: [milestones.projectId],
     references: [projects.id],
   }),
+  photos: many(projectPhotos),
 }));
 
 export const expenses = pgTable(

@@ -8,3 +8,4 @@ export * from "./notification-preferences";
 export * from "./payments";
 export * from "./news";
 export * from "./bug-reports";
+export * from "./project-photos";

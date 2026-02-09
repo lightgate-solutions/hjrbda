@@ -199,7 +199,7 @@ export async function DELETE(
       );
     }
 
-    const [deleted] = await db
+    const [_deleted] = await db
       .delete(projects)
       .where(eq(projects.id, id))
       .returning();
