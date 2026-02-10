@@ -2,6 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { useEffect } from "react";
+import { setCachedProjects } from "@/lib/offline-photo-store";
 
 interface ProjectMember {
   projectId: number;
@@ -69,7 +71,7 @@ export function useProjects(params: UseProjectsParams = {}) {
     sortDirection = "desc",
   } = params;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: [
       "projects",
       page,
@@ -98,4 +100,22 @@ export function useProjects(params: UseProjectsParams = {}) {
     },
     staleTime: 30 * 1000, // 30 seconds
   });
+
+  // Cache projects in IndexedDB for offline use
+  useEffect(() => {
+    if (query.data?.projects) {
+      setCachedProjects(
+        query.data.projects.map((p) => ({
+          id: p.id,
+          name: p.name,
+          code: p.code,
+          status: p.status,
+        })),
+      ).catch(() => {
+        // Silently fail — IndexedDB might not be available
+      });
+    }
+  }, [query.data?.projects]);
+
+  return query;
 }

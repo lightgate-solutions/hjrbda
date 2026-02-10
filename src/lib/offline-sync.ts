@@ -5,7 +5,7 @@ import {
   type PendingPhoto,
 } from "./offline-photo-store";
 
-const MAX_RETRIES = 3;
+const SYNC_CHANNEL = "photo-sync";
 let syncing = false;
 let listeners: Array<() => void> = [];
 
@@ -18,6 +18,16 @@ export function onSyncStatusChange(listener: () => void) {
 
 function notifyListeners() {
   for (const l of listeners) l();
+}
+
+function broadcastSyncComplete(projectId: number) {
+  try {
+    const channel = new BroadcastChannel(SYNC_CHANNEL);
+    channel.postMessage({ type: "PHOTO_SYNC_COMPLETE", projectId });
+    channel.close();
+  } catch {
+    // BroadcastChannel not supported
+  }
 }
 
 async function uploadSinglePhoto(photo: PendingPhoto): Promise<boolean> {
@@ -82,12 +92,12 @@ async function uploadSinglePhoto(photo: PendingPhoto): Promise<boolean> {
 
     await removePendingPhoto(photo.id);
     notifyListeners();
+    broadcastSyncComplete(photo.projectId);
     return true;
   } catch {
     if (photo.id) {
-      const newRetry = (photo.retryCount || 0) + 1;
-      const status = newRetry >= MAX_RETRIES ? "failed" : "pending";
-      await updatePhotoStatus(photo.id, status, newRetry);
+      // Always keep as "pending" so it can be retried — photos are never lost
+      await updatePhotoStatus(photo.id, "pending", (photo.retryCount || 0) + 1);
       notifyListeners();
     }
     return false;
@@ -123,9 +133,39 @@ export function isSyncing(): boolean {
   return syncing;
 }
 
+export async function retryPhoto(id: number): Promise<boolean> {
+  // Reset status to pending and reset retry count so it gets picked up by startSync
+  await updatePhotoStatus(id, "pending", 0);
+  notifyListeners();
+  if (navigator.onLine) {
+    return startSync().then(() => true);
+  }
+  return false;
+}
+
+export async function registerBackgroundSync(): Promise<void> {
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    // @ts-expect-error -- Background Sync API types not in lib.dom
+    if (registration.sync) {
+      // @ts-expect-error -- Background Sync API types not in lib.dom
+      await registration.sync.register("photo-upload");
+    }
+  } catch {
+    // Background Sync not supported — will rely on online event
+  }
+}
+
 // Auto-start sync when going online
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
     startSync();
+  });
+
+  // Listen for SW messages to trigger sync
+  navigator.serviceWorker?.addEventListener("message", (event) => {
+    if (event.data?.type === "TRIGGER_PHOTO_SYNC") {
+      startSync();
+    }
   });
 }

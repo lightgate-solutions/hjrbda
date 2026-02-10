@@ -77,6 +77,10 @@ const data = {
           title: "Contractors",
           url: "/projects/contractors",
         },
+        {
+          title: "Photo Upload",
+          url: "/photos/upload",
+        },
       ],
     },
     {

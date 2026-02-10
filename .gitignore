@@ -46,3 +46,5 @@ next-env.d.ts
 # convex generated (Biome skips via useIgnoreFile)
 convex/_generated
 
+
+certificates

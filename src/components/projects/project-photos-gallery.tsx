@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -10,11 +10,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { MapPin, Map as MapIcon, Grid3X3, Loader2 } from "lucide-react";
+import {
+  MapPin,
+  Map as MapIcon,
+  Grid3X3,
+  Loader2,
+  CloudUpload,
+} from "lucide-react";
 import type { ProjectPhoto } from "@/hooks/projects/use-project-photos";
 import { PhotoDetailDialog } from "./photo-detail-dialog";
 import dynamic from "next/dynamic";
 import Image from "next/image";
+import {
+  getPendingPhotosForProject,
+  type PendingPhoto,
+} from "@/lib/offline-photo-store";
+import { onSyncStatusChange } from "@/lib/offline-sync";
 
 const ProjectPhotosMap = dynamic(
   () => import("./project-photos-map").then((m) => m.ProjectPhotosMap),
@@ -66,6 +77,18 @@ export function ProjectPhotosGallery({
 }: ProjectPhotosGalleryProps) {
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedPhoto, setSelectedPhoto] = useState<ProjectPhoto | null>(null);
+  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+
+  useEffect(() => {
+    const load = () => {
+      getPendingPhotosForProject(projectId)
+        .then(setPendingPhotos)
+        .catch(() => {});
+    };
+    load();
+    const unsub = onSyncStatusChange(load);
+    return unsub;
+  }, [projectId]);
 
   // Group photos by date
   const photosByDate = photos.reduce(
@@ -140,6 +163,43 @@ export function ProjectPhotosGallery({
       {!isLoading && photos.length === 0 && (
         <div className="text-center py-12 border rounded-lg bg-muted/10 border-dashed">
           <p className="text-muted-foreground">No photos yet</p>
+        </div>
+      )}
+
+      {/* Pending offline photos */}
+      {pendingPhotos.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+            <CloudUpload className="h-3.5 w-3.5" />
+            Pending Upload ({pendingPhotos.length})
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {pendingPhotos.map((photo) => (
+              <div
+                key={photo.id}
+                className="relative rounded-lg border border-dashed overflow-hidden bg-muted/20"
+              >
+                <div className="aspect-square bg-muted/30 flex items-center justify-center">
+                  <CloudUpload className="h-8 w-8 text-muted-foreground/50" />
+                </div>
+                <div className="p-2 space-y-1">
+                  <div className="flex items-center gap-1">
+                    <Badge
+                      variant={
+                        photo.status === "failed" ? "destructive" : "outline"
+                      }
+                      className="text-[10px]"
+                    >
+                      {photo.status === "failed" ? "Failed" : "Pending upload"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {photo.fileName}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

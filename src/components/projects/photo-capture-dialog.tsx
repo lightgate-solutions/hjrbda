@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { getCurrentPosition, type GeoPosition } from "@/lib/geo-utils";
 import { savePhotoOffline } from "@/lib/offline-photo-store";
+import { registerBackgroundSync } from "@/lib/offline-sync";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 
@@ -305,6 +306,7 @@ export function PhotoCaptureDialog({
           createdAt: new Date().toISOString(),
         });
       }
+      registerBackgroundSync();
       toast.success("Photos saved. They'll upload when you're back online.");
       cleanup();
       return;

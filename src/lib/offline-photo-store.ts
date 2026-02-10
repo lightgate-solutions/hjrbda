@@ -2,7 +2,8 @@ import { openDB, type IDBPDatabase } from "idb";
 
 const DB_NAME = "hjrbda-photos";
 const STORE_NAME = "pending-uploads";
-const DB_VERSION = 1;
+const PROJECTS_STORE = "cached-projects";
+const DB_VERSION = 2;
 
 export interface PendingPhoto {
   id?: number;
@@ -24,6 +25,13 @@ export interface PendingPhoto {
   createdAt: string;
 }
 
+export interface CachedProject {
+  id: number;
+  name: string;
+  code: string;
+  status: string;
+}
+
 function getDb(): Promise<IDBPDatabase> {
   return openDB(DB_NAME, DB_VERSION, {
     upgrade(db) {
@@ -34,6 +42,9 @@ function getDb(): Promise<IDBPDatabase> {
         });
         store.createIndex("projectId", "projectId", { unique: false });
         store.createIndex("status", "status", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(PROJECTS_STORE)) {
+        db.createObjectStore(PROJECTS_STORE, { keyPath: "id" });
       }
     },
   });
@@ -81,4 +92,22 @@ export async function updatePhotoStatus(
     if (retryCount !== undefined) photo.retryCount = retryCount;
     await db.put(STORE_NAME, photo);
   }
+}
+
+// Cached projects for offline project selection
+export async function setCachedProjects(
+  projects: CachedProject[],
+): Promise<void> {
+  const db = await getDb();
+  const tx = db.transaction(PROJECTS_STORE, "readwrite");
+  await tx.store.clear();
+  for (const project of projects) {
+    await tx.store.put(project);
+  }
+  await tx.done;
+}
+
+export async function getCachedProjects(): Promise<CachedProject[]> {
+  const db = await getDb();
+  return db.getAll(PROJECTS_STORE);
 }
