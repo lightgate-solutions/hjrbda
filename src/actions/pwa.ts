@@ -2,6 +2,7 @@
 "use server";
 
 import webpush from "web-push";
+import { redisClient } from "@/lib/redisClient";
 
 // Configure VAPID details
 webpush.setVapidDetails(
@@ -18,8 +19,7 @@ interface WebPushSubscription {
   };
 }
 
-// In-memory storage (use a database in production)
-const subscriptions: Set<WebPushSubscription> = new Set();
+const REDIS_KEY = "push:subscriptions";
 
 export async function subscribeToPush(sub: Record<string, unknown>) {
   try {
@@ -30,7 +30,12 @@ export async function subscribeToPush(sub: Record<string, unknown>) {
         auth: (sub.keys as Record<string, string>).auth,
       },
     };
-    subscriptions.add(subscription);
+
+    // Store subscription in Redis Hash
+    await redisClient.hset(REDIS_KEY, {
+      [subscription.endpoint]: JSON.stringify(subscription),
+    });
+
     console.log("User subscribed to push notifications");
     return { success: true, message: "Subscribed to notifications" };
   } catch (error) {
@@ -42,11 +47,10 @@ export async function subscribeToPush(sub: Record<string, unknown>) {
 export async function unsubscribeFromPush(sub: Record<string, unknown>) {
   try {
     const endpoint = sub.endpoint as string;
-    subscriptions.forEach((subscription) => {
-      if (subscription.endpoint === endpoint) {
-        subscriptions.delete(subscription);
-      }
-    });
+
+    // Remove subscription from Redis Hash
+    await redisClient.hdel(REDIS_KEY, endpoint);
+
     console.log("User unsubscribed from push notifications");
     return { success: true, message: "Unsubscribed from notifications" };
   } catch (error) {
@@ -62,7 +66,11 @@ export async function sendNotificationToAll(notificationData: {
   persistent?: boolean;
 }) {
   try {
-    if (subscriptions.size === 0) {
+    // Get all subscriptions from Redis Hash
+    const subscriptionsData =
+      await redisClient.hgetall<Record<string, string>>(REDIS_KEY);
+
+    if (!subscriptionsData || Object.keys(subscriptionsData).length === 0) {
       return { success: false, message: "No active subscriptions" };
     }
 
@@ -74,17 +82,23 @@ export async function sendNotificationToAll(notificationData: {
       persistent: notificationData.persistent || false,
     };
 
-    const promises = Array.from(subscriptions).map((subscription) =>
+    // Parse subscriptions from JSON strings
+    const subscriptions = Object.values(subscriptionsData).map(
+      (sub) => JSON.parse(sub) as WebPushSubscription,
+    );
+
+    const promises = subscriptions.map((subscription) =>
       webpush
         .sendNotification(subscription, JSON.stringify(notification))
-        .catch((error) => {
+        .catch(async (error) => {
           console.error("Error sending notification:", error);
-          subscriptions.delete(subscription);
+          // Remove failed subscription from Redis
+          await redisClient.hdel(REDIS_KEY, subscription.endpoint);
         }),
     );
 
     await Promise.all(promises);
-    console.log(`Notification sent to ${subscriptions.size} users`);
+    console.log(`Notification sent to ${subscriptions.length} users`);
     return { success: true, message: "Notification sent" };
   } catch (error) {
     console.error("Error sending notification:", error);
