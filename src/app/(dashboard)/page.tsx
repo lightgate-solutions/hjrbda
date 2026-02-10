@@ -4,12 +4,42 @@
 
 "use client";
 
-import AdminDashboard from "@/components/dashboard/AdminDashboard";
-import HrDashboard from "@/components/dashboard/HrDashboard";
-import StaffDashboard from "@/components/dashboard/StaffDashboard";
-import ManagerDashboard from "@/components/dashboard/ManagerDashboard";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const DashboardSkeleton = () => (
+  <div className="space-y-8 p-6">
+    <div className="space-y-2">
+      <Skeleton className="h-10 w-64" />
+      <Skeleton className="h-5 w-96" />
+    </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
+        <Skeleton key={i} className="h-24 rounded-lg" />
+      ))}
+    </div>
+  </div>
+);
+
+const AdminDashboard = dynamic(
+  () => import("@/components/dashboard/AdminDashboard"),
+  { loading: () => <DashboardSkeleton /> },
+);
+const HrDashboard = dynamic(
+  () => import("@/components/dashboard/HrDashboard"),
+  { loading: () => <DashboardSkeleton /> },
+);
+const StaffDashboard = dynamic(
+  () => import("@/components/dashboard/StaffDashboard"),
+  { loading: () => <DashboardSkeleton /> },
+);
+const ManagerDashboard = dynamic(
+  () => import("@/components/dashboard/ManagerDashboard"),
+  { loading: () => <DashboardSkeleton /> },
+);
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();

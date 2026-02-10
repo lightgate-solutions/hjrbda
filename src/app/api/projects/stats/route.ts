@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { expenses, projects, projectMembers } from "@/db/schema";
-import { and, eq, ilike, or, inArray, exists, type SQL } from "drizzle-orm";
+import { and, eq, ilike, or, exists, sql, type SQL } from "drizzle-orm";
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAuth } from "@/actions/auth/dal";
 
@@ -60,22 +60,41 @@ export async function GET(request: NextRequest) {
           );
     }
 
-    const rows = await db.select().from(projects).where(where);
-    const total = rows.length;
-    const actual = rows.reduce((acc, p) => acc + (p.budgetPlanned ?? 0), 0);
+    // Use SQL aggregation instead of loading all rows into memory
+    const [projectStats] = await db
+      .select({
+        total: sql<number>`count(*)`,
+        actual: sql<number>`coalesce(sum(${projects.budgetPlanned}), 0)`,
+      })
+      .from(projects)
+      .where(where);
 
-    let expensesTotal = 0;
-    if (rows.length > 0) {
-      const ids = rows.map((p) => p.id);
-      const exps = await db
-        .select()
-        .from(expenses)
-        .where(inArray(expenses.projectId, ids));
-      expensesTotal = exps.reduce((acc, e) => acc + (e.amount ?? 0), 0);
-    }
+    // Use a subquery to sum expenses only for matching projects
+    const [expenseStats] = await db
+      .select({
+        total: sql<number>`coalesce(sum(${expenses.amount}), 0)`,
+      })
+      .from(expenses)
+      .where(
+        exists(
+          db
+            .select({ id: projects.id })
+            .from(projects)
+            .where(
+              and(
+                eq(projects.id, expenses.projectId),
+                ...(where ? [where] : []),
+              ),
+            ),
+        ),
+      );
 
     return NextResponse.json(
-      { total, actual, expenses: expensesTotal },
+      {
+        total: Number(projectStats.total),
+        actual: Number(projectStats.actual),
+        expenses: Number(expenseStats.total),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

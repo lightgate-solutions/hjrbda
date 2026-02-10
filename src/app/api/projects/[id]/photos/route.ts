@@ -7,7 +7,7 @@ import {
   projects,
 } from "@/db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { createNotification } from "@/actions/notification/notification";
 import { getUser } from "@/actions/auth/dal";
 import { checkProjectAccess } from "@/lib/project-access";
@@ -191,109 +191,141 @@ export async function POST(
       );
     }
 
-    const createdPhotos = [];
+    // Filter valid photos and batch insert
+    const validPhotos = photosData.filter(
+      (photo: {
+        fileUrl?: string;
+        fileKey?: string;
+        fileName?: string;
+        mimeType?: string;
+      }) => photo.fileUrl && photo.fileKey && photo.fileName && photo.mimeType,
+    );
 
-    for (const photo of photosData) {
-      const {
-        fileUrl,
-        fileKey,
-        fileName,
-        fileSize,
-        mimeType,
-        latitude,
-        longitude,
-        accuracy,
-        category,
-        note,
-        capturedAt,
-        milestoneId: photoMilestoneId,
-        tags,
-      } = photo;
+    if (validPhotos.length === 0) {
+      return NextResponse.json(
+        { error: "No valid photos to upload" },
+        { status: 400 },
+      );
+    }
 
-      if (!fileUrl || !fileKey || !fileName || !mimeType) {
-        continue;
-      }
+    const insertedPhotos = await db
+      .insert(projectPhotos)
+      .values(
+        validPhotos.map(
+          (photo: {
+            fileUrl: string;
+            fileKey: string;
+            fileName: string;
+            fileSize?: number;
+            mimeType: string;
+            latitude?: number;
+            longitude?: number;
+            accuracy?: number;
+            category?: string;
+            note?: string;
+            capturedAt?: string;
+            milestoneId?: string | number;
+          }) => ({
+            projectId,
+            milestoneId: photo.milestoneId ? Number(photo.milestoneId) : null,
+            uploadedBy: user.id,
+            fileUrl: photo.fileUrl,
+            fileKey: photo.fileKey,
+            fileName: photo.fileName,
+            fileSize: Number(photo.fileSize) || 0,
+            mimeType: photo.mimeType,
+            latitude: photo.latitude ? String(photo.latitude) : null,
+            longitude: photo.longitude ? String(photo.longitude) : null,
+            accuracy: photo.accuracy ? String(photo.accuracy) : null,
+            category: (photo.category || "other") as
+              | "progress"
+              | "completion"
+              | "inspection"
+              | "incident"
+              | "asset"
+              | "other",
+            note: photo.note || null,
+            capturedAt: new Date(photo.capturedAt || Date.now()),
+          }),
+        ),
+      )
+      .returning();
 
-      const [created] = await db
-        .insert(projectPhotos)
-        .values({
-          projectId,
-          milestoneId: photoMilestoneId ? Number(photoMilestoneId) : null,
-          uploadedBy: user.id,
-          fileUrl,
-          fileKey,
-          fileName,
-          fileSize: Number(fileSize) || 0,
-          mimeType,
-          latitude: latitude ? String(latitude) : null,
-          longitude: longitude ? String(longitude) : null,
-          accuracy: accuracy ? String(accuracy) : null,
-          category: category || "other",
-          note: note || null,
-          capturedAt: new Date(capturedAt || Date.now()),
+    // Batch insert all tags
+    const allTags = validPhotos.flatMap(
+      (photo: { tags?: string[] }, index: number) => {
+        if (!Array.isArray(photo.tags) || photo.tags.length === 0) return [];
+        return photo.tags.map((tag: string) => ({
+          photoId: insertedPhotos[index].id,
+          tag: tag.trim(),
+        }));
+      },
+    );
+
+    if (allTags.length > 0) {
+      await db.insert(projectPhotoTags).values(allTags);
+    }
+
+    const createdPhotos = insertedPhotos.map((photo, index) => ({
+      ...photo,
+      tags: validPhotos[index].tags || [],
+    }));
+
+    // Send notifications after response
+    after(async () => {
+      const [project] = await db
+        .select({
+          supervisorId: projects.supervisorId,
+          name: projects.name,
+          code: projects.code,
         })
-        .returning();
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .limit(1);
 
-      // Insert tags
-      if (Array.isArray(tags) && tags.length > 0) {
-        await db.insert(projectPhotoTags).values(
-          tags.map((tag: string) => ({
-            photoId: created.id,
-            tag: tag.trim(),
-          })),
-        );
-      }
+      if (project) {
+        const photoCount = createdPhotos.length;
+        const message = `${user.name} uploaded ${photoCount} photo${photoCount > 1 ? "s" : ""} to project ${project.name} (${project.code})`;
 
-      createdPhotos.push({ ...created, tags: tags || [] });
-    }
+        const notificationPromises: Promise<unknown>[] = [];
 
-    // Notify project members and supervisor
-    const [project] = await db
-      .select({
-        supervisorId: projects.supervisorId,
-        name: projects.name,
-        code: projects.code,
-      })
-      .from(projects)
-      .where(eq(projects.id, projectId))
-      .limit(1);
-
-    if (project) {
-      const photoCount = createdPhotos.length;
-      const message = `${user.name} uploaded ${photoCount} photo${photoCount > 1 ? "s" : ""} to project ${project.name} (${project.code})`;
-
-      // Notify supervisor
-      if (project.supervisorId && project.supervisorId !== user.id) {
-        await createNotification({
-          user_id: project.supervisorId,
-          title: "New Project Photos",
-          message,
-          notification_type: "message",
-          reference_id: projectId,
-        });
-      }
-
-      // Notify project members
-      const members = await db
-        .select({ employeeId: projectMembers.employeeId })
-        .from(projectMembers)
-        .where(eq(projectMembers.projectId, projectId));
-
-      for (const member of members) {
-        if (
-          member.employeeId !== user.id &&
-          member.employeeId !== project.supervisorId
-        ) {
-          await createNotification({
-            user_id: member.employeeId,
-            title: "New Project Photos",
-            message,
-            notification_type: "message",
-            reference_id: projectId,
-          });
+        if (project.supervisorId && project.supervisorId !== user.id) {
+          notificationPromises.push(
+            createNotification({
+              user_id: project.supervisorId,
+              title: "New Project Photos",
+              message,
+              notification_type: "message",
+              reference_id: projectId,
+            }),
+          );
         }
+
+        const members = await db
+          .select({ employeeId: projectMembers.employeeId })
+          .from(projectMembers)
+          .where(eq(projectMembers.projectId, projectId));
+
+        for (const member of members) {
+          if (
+            member.employeeId !== user.id &&
+            member.employeeId !== project.supervisorId
+          ) {
+            notificationPromises.push(
+              createNotification({
+                user_id: member.employeeId,
+                title: "New Project Photos",
+                message,
+                notification_type: "message",
+                reference_id: projectId,
+              }),
+            );
+          }
+        }
+
+        await Promise.all(notificationPromises);
       }
-    }
+    });
 
     return NextResponse.json({ photos: createdPhotos }, { status: 201 });
   } catch (error: unknown) {
@@ -390,16 +422,18 @@ export async function DELETE(
     // Delete DB record (tags cascade)
     await db.delete(projectPhotos).where(eq(projectPhotos.id, Number(photoId)));
 
-    // Notify supervisor
-    if (project?.supervisorId && project.supervisorId !== user.id) {
-      await createNotification({
-        user_id: project.supervisorId,
-        title: "Project Photo Deleted",
-        message: `${user.name} deleted a photo from project ${project.name} (${project.code})`,
-        notification_type: "message",
-        reference_id: projectId,
-      });
-    }
+    // Send notification after response
+    after(async () => {
+      if (project?.supervisorId && project.supervisorId !== user.id) {
+        await createNotification({
+          user_id: project.supervisorId,
+          title: "Project Photo Deleted",
+          message: `${user.name} deleted a photo from project ${project.name} (${project.code})`,
+          notification_type: "message",
+          reference_id: projectId,
+        });
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

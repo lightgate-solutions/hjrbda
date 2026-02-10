@@ -30,6 +30,20 @@ interface Email {
   }>;
 }
 
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function truncateText(text: string, maxLength: number) {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+}
+
 interface EmailListSidebarProps {
   emails: Email[];
   folder: "inbox" | "sent" | "archive" | "trash";
@@ -47,20 +61,6 @@ export function EmailListSidebar({
 }: EmailListSidebarProps) {
   const searchParams = useSearchParams();
   const selectedId = Number(searchParams.get("id"));
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return `${text.slice(0, maxLength)}...`;
-  };
 
   if (emails.length === 0) {
     return (
