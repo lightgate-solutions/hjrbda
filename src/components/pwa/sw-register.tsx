@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { startSync } from "@/lib/offline-sync";
+import { syncProjectsToCache } from "@/lib/offline-photo-store";
 
 export function ServiceWorkerRegister() {
   const queryClient = useQueryClient();
@@ -72,6 +73,11 @@ export function ServiceWorkerRegister() {
                 duration: 5000,
               });
             }
+
+            // Sync projects to IndexedDB immediately
+            console.log("[PWA] Syncing projects for offline use...");
+            await syncProjectsToCache();
+            console.log("[PWA] Projects cached for offline use.");
           } catch (error) {
             console.warn("[PWA] Failed to warm cache:", error);
           }
@@ -125,6 +131,29 @@ export function ServiceWorkerRegister() {
       syncChannel?.close();
     };
   }, [queryClient]);
+
+  // Sync projects to IndexedDB every 5 minutes while online
+  useEffect(() => {
+    const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+    const syncProjects = () => {
+      if (navigator.onLine) {
+        syncProjectsToCache().catch((err) =>
+          console.warn("[PWA] Background project sync failed:", err),
+        );
+      }
+    };
+
+    const intervalId = setInterval(syncProjects, SYNC_INTERVAL);
+
+    // Also sync when coming back online
+    window.addEventListener("online", syncProjects);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("online", syncProjects);
+    };
+  }, []);
 
   // Listen for SW trigger to start sync (from Background Sync handler)
   useEffect(() => {

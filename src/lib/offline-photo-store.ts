@@ -111,3 +111,23 @@ export async function getCachedProjects(): Promise<CachedProject[]> {
   const db = await getDb();
   return db.getAll(PROJECTS_STORE);
 }
+
+// Fetch projects from API and cache in IndexedDB for offline use
+export async function syncProjectsToCache(): Promise<CachedProject[]> {
+  const response = await fetch(
+    "/api/projects?limit=100&sortBy=name&sortDirection=asc",
+    { credentials: "include" },
+  );
+  if (!response.ok) throw new Error("Failed to fetch projects");
+  const data = await response.json();
+  const projects: CachedProject[] = data.projects.map(
+    (p: { id: number; name: string; code: string; status: string }) => ({
+      id: p.id,
+      name: p.name,
+      code: p.code,
+      status: p.status,
+    }),
+  );
+  await setCachedProjects(projects);
+  return projects;
+}

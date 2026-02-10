@@ -25,6 +25,7 @@ import { PhotoCaptureDialog } from "@/components/projects/photo-capture-dialog";
 import {
   getCachedProjects,
   getPendingPhotos,
+  syncProjectsToCache,
   type CachedProject,
   type PendingPhoto,
 } from "@/lib/offline-photo-store";
@@ -50,6 +51,7 @@ export default function OfflinePhotoUploadPage() {
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
   const [syncing, setSyncing] = useState(false);
+  const [syncingProjects, setSyncingProjects] = useState(false);
 
   // Fetch projects from API when online — this also caches them in IndexedDB
   const { data: projectsData } = useProjects({
@@ -111,6 +113,23 @@ export default function OfflinePhotoUploadPage() {
     loadPendingPhotos();
   };
 
+  const handleSyncProjects = async () => {
+    if (!isOnline) {
+      toast.error("You're offline. Connect to the internet to sync projects.");
+      return;
+    }
+    setSyncingProjects(true);
+    try {
+      const projects = await syncProjectsToCache();
+      setCachedProjectsList(projects);
+      toast.success(`Synced ${projects.length} projects for offline use.`);
+    } catch {
+      toast.error("Failed to sync projects.");
+    } finally {
+      setSyncingProjects(false);
+    }
+  };
+
   const handleRetry = async (id: number) => {
     await retryPhoto(id);
     loadPendingPhotos();
@@ -160,8 +179,19 @@ export default function OfflinePhotoUploadPage() {
 
       {/* Project Selector */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-base">Select Project</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncProjects}
+            disabled={syncingProjects || !isOnline}
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 mr-1.5 ${syncingProjects ? "animate-spin" : ""}`}
+            />
+            Sync Projects
+          </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <Select
