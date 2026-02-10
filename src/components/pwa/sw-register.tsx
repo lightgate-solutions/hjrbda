@@ -13,7 +13,7 @@ export function ServiceWorkerRegister() {
 
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
-      .then((registration) => {
+      .then(async (registration) => {
         registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;
           if (newWorker) {
@@ -28,17 +28,60 @@ export function ServiceWorkerRegister() {
           }
         });
 
-        // Warm the /photos/upload page into cache so it's always available offline.
-        // A simple fetch is enough — the SW fetch handler caches navigation responses.
+        // Wait for service worker to be ready before warming cache
+        await navigator.serviceWorker.ready;
+
+        // Aggressively warm the /photos/upload page and all its dependencies
         if (navigator.onLine) {
-          fetch("/photos/upload").catch(() => {});
+          try {
+            console.log("[PWA] Warming /photos/upload cache...");
+
+            // Fetch the page HTML
+            const pageResponse = await fetch("/photos/upload", {
+              credentials: "include",
+            });
+
+            if (pageResponse.ok) {
+              const html = await pageResponse.text();
+
+              // Extract and prefetch Next.js chunks
+              const chunkRegex = /"(\/_next\/static\/[^"]+)"/g;
+              const chunkMatches = html.matchAll(chunkRegex);
+              const chunkUrls = [
+                ...new Set(Array.from(chunkMatches, (m) => m[1])),
+              ];
+
+              console.log(`[PWA] Prefetching ${chunkUrls.length} chunks...`);
+
+              // Prefetch all chunks in parallel
+              const results = await Promise.allSettled(
+                chunkUrls.map((url) => fetch(url)),
+              );
+
+              const successCount = results.filter(
+                (r) => r.status === "fulfilled",
+              ).length;
+              console.log(
+                `[PWA] Cache warming complete! (${successCount}/${chunkUrls.length} chunks cached)`,
+              );
+
+              // Show success notification
+              toast.success("Offline mode ready", {
+                description:
+                  "You can now upload photos even without internet connection.",
+                duration: 5000,
+              });
+            }
+          } catch (error) {
+            console.warn("[PWA] Failed to warm cache:", error);
+          }
         }
       })
       .catch((err) => {
         console.error("SW registration failed:", err);
       });
 
-    // Listen for SW_UPDATED message from service worker
+    // Listen for messages from service worker
     navigator.serviceWorker.addEventListener("message", (event) => {
       if (event.data?.type === "SW_UPDATED") {
         toast("Update available", {
@@ -48,6 +91,13 @@ export function ServiceWorkerRegister() {
             onClick: () => window.location.reload(),
           },
           duration: 15000,
+        });
+      } else if (event.data?.type === "OFFLINE_READY") {
+        console.log("[PWA] Offline photo upload ready!");
+        toast.success("Offline mode ready", {
+          description:
+            "You can now upload photos even without internet connection.",
+          duration: 5000,
         });
       }
     });

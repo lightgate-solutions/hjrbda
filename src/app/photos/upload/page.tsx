@@ -19,8 +19,8 @@ import {
   WifiOff,
   RotateCw,
   CloudUpload,
+  ArrowLeft,
 } from "lucide-react";
-import { BackButton } from "@/components/ui/back-button";
 import { PhotoCaptureDialog } from "@/components/projects/photo-capture-dialog";
 import {
   getCachedProjects,
@@ -37,6 +37,7 @@ import {
 } from "@/lib/offline-sync";
 import { useProjects } from "@/hooks/projects/use-projects";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function OfflinePhotoUploadPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
@@ -125,8 +126,13 @@ export default function OfflinePhotoUploadPage() {
   };
 
   return (
-    <div className="p-2 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-background p-4 space-y-4">
+      <div className="flex items-center gap-4">
+        <Link href="/projects" className="shrink-0">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </Link>
         <div>
           <h1 className="text-2xl font-bold">Upload Photos</h1>
           <p className="text-sm text-muted-foreground">
@@ -285,7 +291,9 @@ export default function OfflinePhotoUploadPage() {
                             variant="outline"
                             size="sm"
                             className="h-7 text-xs"
-                            onClick={() => handleRetry(photo.id!)}
+                            onClick={() => {
+                              if (photo.id) handleRetry(photo.id);
+                            }}
                           >
                             <RotateCw className="h-3 w-3 mr-1" />
                             Retry
