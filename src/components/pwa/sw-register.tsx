@@ -66,12 +66,15 @@ export function ServiceWorkerRegister() {
                 `[PWA] Cache warming complete! (${successCount}/${chunkUrls.length} chunks cached)`,
               );
 
-              // Show success notification
-              toast.success("Offline mode ready", {
-                description:
-                  "You can now upload photos even without internet connection.",
-                duration: 5000,
-              });
+              // Show success notification only once per session
+              if (!sessionStorage.getItem("pwa-offline-ready")) {
+                sessionStorage.setItem("pwa-offline-ready", "1");
+                toast.success("Offline mode ready", {
+                  description:
+                    "You can now upload photos even without internet connection.",
+                  duration: 5000,
+                });
+              }
             }
 
             // Sync projects to IndexedDB immediately
@@ -100,11 +103,14 @@ export function ServiceWorkerRegister() {
         });
       } else if (event.data?.type === "OFFLINE_READY") {
         console.log("[PWA] Offline photo upload ready!");
-        toast.success("Offline mode ready", {
-          description:
-            "You can now upload photos even without internet connection.",
-          duration: 5000,
-        });
+        if (!sessionStorage.getItem("pwa-offline-ready")) {
+          sessionStorage.setItem("pwa-offline-ready", "1");
+          toast.success("Offline mode ready", {
+            description:
+              "You can now upload photos even without internet connection.",
+            duration: 5000,
+          });
+        }
       }
     });
 
