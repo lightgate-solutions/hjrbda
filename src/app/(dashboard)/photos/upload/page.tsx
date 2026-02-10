@@ -127,7 +127,6 @@ export default function OfflinePhotoUploadPage() {
   return (
     <div className="p-2 space-y-4">
       <div className="flex items-center justify-between">
-        <BackButton />
         <div>
           <h1 className="text-2xl font-bold">Upload Photos</h1>
           <p className="text-sm text-muted-foreground">

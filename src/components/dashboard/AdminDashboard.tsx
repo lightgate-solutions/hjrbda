@@ -205,7 +205,7 @@ export default function AdminDashboard({ employeeId }: { employeeId: number }) {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="sm:flex-col flex-row items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-50">
             Admin Dashboard
