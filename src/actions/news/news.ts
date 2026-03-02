@@ -391,7 +391,10 @@ export async function getNewsArticle(id: string) {
 
   if (!article) return null;
 
-  const isHROrAdmin = user.role === "admin" || user.role === "hr";
+  const isHROrAdmin =
+    user.role === "admin" ||
+    user.department === "admin" ||
+    user.department === "hr";
   if (article.status !== "published" && !isHROrAdmin) {
     return null;
   }
@@ -498,7 +501,10 @@ export async function deleteNewsComment(commentId: string) {
     return { success: null, error: { reason: "Comment not found" } };
   }
 
-  const isHROrAdmin = user.role === "admin" || user.role === "hr";
+  const isHROrAdmin =
+    user.role === "admin" ||
+    user.department === "admin" ||
+    user.department === "hr";
   if (comment.userId !== user.id && !isHROrAdmin) {
     return {
       success: null,

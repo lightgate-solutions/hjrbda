@@ -128,7 +128,7 @@ export function AppSidebar({
   employeeRole: string;
   employeeDepartment: string;
 }) {
-  const isAdmin = employeeRole === "admin";
+  const isAdmin = employeeRole === "admin" || employeeDepartment === "admin";
   const isHrOrAdmin =
     employeeDepartment === "hr" ||
     employeeRole === "admin" ||
@@ -143,22 +143,9 @@ export function AppSidebar({
 
     // Filter base items based on role permissions
     const filteredBase = base.filter((item) => {
-      // Hr: filter sub-items based on role
       if (item.title === "Hr") {
-        const hrItems = item.items?.filter((subItem) => {
-          // User Management and View Employees: only admin and hr can see
-          if (
-            subItem.title === "User Management" ||
-            subItem.title === "View Employees"
-          ) {
-            return isHrOrAdmin;
-          }
-          // Other HR items visible to all
-          return true;
-        });
-
-        // Only show Hr menu if user has access to at least one sub-item
-        return hrItems && hrItems.length > 0;
+        // Show Hr menu only to HR department and admin users
+        return isHrOrAdmin;
       }
 
       // Payroll: only admin and hr can see
@@ -170,17 +157,19 @@ export function AppSidebar({
       return true;
     });
 
-    // Update Hr items based on role
+    // Update Hr sub-items:
+    // "User Management" → admin only (role=admin OR dept=admin)
+    // "Employees" → HR department and admin
     const updatedBase = filteredBase.map((item) => {
-      if (item.title === "Hr" && !isHrOrAdmin) {
-        // Filter out restricted HR sub-items for non-hr/non-admin users
+      if (item.title === "Hr") {
         return {
           ...item,
-          items: item.items?.filter(
-            (subItem) =>
-              subItem.title !== "User Management" &&
-              subItem.title !== "Employees",
-          ),
+          items: item.items?.filter((subItem) => {
+            if (subItem.title === "User Management") {
+              return isAdmin;
+            }
+            return true; // Employees and other items visible to all isHrOrAdmin
+          }),
         };
       }
       return item;

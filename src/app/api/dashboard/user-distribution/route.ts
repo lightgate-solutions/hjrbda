@@ -1,94 +1,54 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/actions/auth/dal";
 import { db } from "@/db";
 import { employees } from "@/db/schema/hr";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
-    const h = await headers();
-    const session = await auth.api.getSession({ headers: h });
-    const authUserId = session?.user?.id;
-    const role = session?.user?.role;
+    // Only admin-level users can see user distribution (role=admin OR department=admin)
+    await requireAdmin();
 
-    if (!authUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Normalize role check
-    const normalizedRole = role?.toLowerCase().trim() || "";
-    const isAdmin = normalizedRole === "admin";
-
-    // Only admin can see user distribution
-    if (!isAdmin) {
-      return NextResponse.json(
-        { error: "Forbidden - Admin access required" },
-        { status: 403 },
-      );
-    }
-
-    // Get user distribution by role
-    // Group by role and count users
-    const roleDistribution = await db
+    // Get user distribution by department (the actual RBAC dimension)
+    const deptDistribution = await db
       .select({
-        role: employees.role,
+        department: employees.department,
         count: sql<number>`count(*)::int`,
       })
       .from(employees)
-      .groupBy(employees.role);
+      .groupBy(employees.department);
 
-    // Map roles to display names and colors
-    const roleMap: Record<
+    // Map departments to display names and colors
+    const deptMap: Record<
       string,
       { name: string; colorLight: string; colorDark: string }
     > = {
-      hr: { name: "HR", colorLight: "#3b82f6", colorDark: "#60a5fa" },
-      "human resources": {
-        name: "HR",
-        colorLight: "#3b82f6",
-        colorDark: "#60a5fa",
-      },
-      finance: { name: "Finance", colorLight: "#8b5cf6", colorDark: "#a78bfa" },
-      accounting: {
-        name: "Finance",
-        colorLight: "#8b5cf6",
-        colorDark: "#a78bfa",
-      },
-      accountant: {
-        name: "Finance",
-        colorLight: "#8b5cf6",
-        colorDark: "#a78bfa",
-      },
-      management: {
-        name: "Management",
-        colorLight: "#10b981",
-        colorDark: "#34d399",
-      },
-      manager: {
-        name: "Management",
-        colorLight: "#10b981",
-        colorDark: "#34d399",
-      },
-      staff: { name: "Staff", colorLight: "#f59e0b", colorDark: "#fbbf24" },
-      employee: { name: "Staff", colorLight: "#f59e0b", colorDark: "#fbbf24" },
       admin: { name: "Admin", colorLight: "#ef4444", colorDark: "#f87171" },
+      hr: { name: "HR", colorLight: "#3b82f6", colorDark: "#60a5fa" },
+      finance: { name: "Finance", colorLight: "#8b5cf6", colorDark: "#a78bfa" },
+      operations: {
+        name: "Operations",
+        colorLight: "#10b981",
+        colorDark: "#34d399",
+      },
     };
 
     // Format data for chart
-    const distributionData = roleDistribution.map((item) => {
-      const roleKey = item.role?.toLowerCase().trim() || "staff";
-      const roleInfo = roleMap[roleKey] || {
-        name: item.role || "Other",
-        colorLight: "#94a3b8",
-        colorDark: "#cbd5e1",
+    const distributionData = deptDistribution.map((item) => {
+      const deptKey = item.department?.toLowerCase().trim() || "other";
+      const deptInfo = deptMap[deptKey] || {
+        name: item.department || "Other",
+        colorLight: "#f59e0b",
+        colorDark: "#fbbf24",
       };
 
       return {
-        name: roleInfo.name,
+        name: deptInfo.name,
         value: Number(item.count || 0),
-        colorLight: roleInfo.colorLight,
-        colorDark: roleInfo.colorDark,
+        colorLight: deptInfo.colorLight,
+        colorDark: deptInfo.colorDark,
       };
     });
 
@@ -97,6 +57,14 @@ export async function GET() {
 
     return NextResponse.json({ distribution: distributionData });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.startsWith("Unauthorized")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (error.message.startsWith("Forbidden")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
     console.error("Error fetching user distribution:", error);
     return NextResponse.json(
       { error: "Failed to fetch user distribution", distribution: [] },

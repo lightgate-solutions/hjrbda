@@ -1,6 +1,5 @@
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/actions/auth/dal";
 import { db } from "@/db";
-import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { createObjectCsvStringifier } from "csv-writer";
 import { employees, employeesDocuments, employeesBank } from "@/db/schema/hr";
@@ -10,6 +9,8 @@ import { newsArticles } from "@/db/schema/news";
 import { user, session } from "@/db/schema/auth";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+
+export const dynamic = "force-dynamic";
 
 type ExportDataset =
   | "employees"
@@ -27,21 +28,8 @@ type ExportDataset =
 
 export async function GET(request: NextRequest) {
   try {
-    const authSession = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!authSession?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userRole = authSession.user.role?.toLowerCase().trim();
-    if (userRole !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden: Admin access required" },
-        { status: 403 },
-      );
-    }
+    // Only admin-level users can export data (role=admin OR department=admin)
+    await requireAdmin();
 
     const searchParams = request.nextUrl.searchParams;
     const dataset = searchParams.get("dataset") as ExportDataset;
@@ -86,6 +74,14 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.startsWith("Unauthorized")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (error.message.startsWith("Forbidden")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
     console.error("Export error:", error);
     return NextResponse.json(
       { success: false, message: "Failed to export data" },

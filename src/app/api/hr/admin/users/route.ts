@@ -1,26 +1,14 @@
 import { getUsers } from "@/actions/auth/users";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/actions/auth/dal";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication and admin role
-    const h = await headers();
-    const session = await auth.api.getSession({ headers: h });
-    const authUserId = session?.user?.id;
-    const userRole = session?.user?.role;
-
-    if (!authUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admin can access this endpoint - normalize role like dashboard does
-    const normalizedRole = userRole?.toLowerCase().trim() || "";
-    if (normalizedRole !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Check authentication and admin access (role=admin OR department=admin)
+    await requireAdmin();
 
     const searchParams = request.nextUrl.searchParams;
     const page = Number(searchParams.get("page") || "1");
@@ -56,6 +44,14 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.startsWith("Unauthorized")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (error.message.startsWith("Forbidden")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
     console.error("Error fetching users:", error);
     return NextResponse.json(
       { error: "Failed to fetch users", users: [], total: 0 },

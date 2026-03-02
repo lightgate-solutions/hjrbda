@@ -75,26 +75,8 @@ export async function GET() {
       .orderBy(desc(document.createdAt)) // Order by createdAt to show newest uploads first
       .limit(5); // Get top 5 most recent
 
-    // Debug logging
-    console.log(
-      `[Staff Documents API] Employee ${employee.id} found ${recentDocs.length} accessible documents`,
-    );
-
     // Filter out documents without valid IDs or names
-    // Accept documents even if currentVersionId is 0 (might be in transition or fallback query)
-    const validDocs = recentDocs.filter((doc) => {
-      const isValid = doc.id && doc.name;
-      if (isValid && (!doc.currentVersionId || doc.currentVersionId === 0)) {
-        console.log(
-          `[Staff Documents API] Including document ${doc.id} with currentVersionId=0 (might be in transition)`,
-        );
-      }
-      return isValid;
-    });
-
-    console.log(
-      `[Staff Documents API] After filtering: ${validDocs.length} valid documents`,
-    );
+    const validDocs = recentDocs.filter((doc) => doc.id && doc.name);
 
     const formattedDocs = validDocs.map((doc) => {
       const date = new Date(doc.uploadedDate || new Date());

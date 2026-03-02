@@ -41,13 +41,15 @@ export async function GET() {
       );
     }
 
-    // Build visibility condition based on user role
+    // Build visibility condition based on user role/department
+    const isAdmin =
+      normalizedRole === "admin" || employee.department === "admin";
     let whereClause: SQL<unknown>;
 
-    if (normalizedRole === "admin") {
+    if (isAdmin) {
       // Admin can see all active documents
       whereClause = eq(document.status, "active");
-    } else if (employee.isManager || normalizedRole === "manager") {
+    } else if (employee.isManager) {
       // Manager can see own documents, team member documents, departmental documents, and public documents
       const subordinates = await db
         .select({ id: employees.id })
