@@ -190,7 +190,7 @@ export async function updateNewsArticle(data: UpdateNewsInput) {
           title: "News Article",
           message: `${employee.name} published: "${data.title}"`,
           notification_type: "message",
-          reference_id: undefined,
+          reference_id: Number(data.id),
         });
       }
     }

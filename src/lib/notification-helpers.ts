@@ -4,6 +4,44 @@ import { eq, inArray } from "drizzle-orm";
 
 export type NotificationType = "in_app_message" | "task" | "general";
 
+export interface NotificationForView {
+  title: string;
+  notificationType: string;
+  referenceId?: number;
+}
+
+/**
+ * Returns the URL to view the source of a notification (e.g. project page, email thread).
+ * Used for the "View" button so the user can navigate to where the notification came from.
+ */
+export function getNotificationViewUrl(
+  notification: NotificationForView,
+): string | null {
+  const { title, referenceId } = notification;
+  if (referenceId == null) return null;
+
+  // Project supervisor assignment → project detail (phases/milestones live there)
+  if (
+    title === "Assigned as Project Supervisor" ||
+    title?.toLowerCase().includes("project supervisor")
+  ) {
+    return `/projects/${referenceId}`;
+  }
+
+  // New message / reply → open that email in inbox
+  if (
+    title === "New message received" ||
+    title === "New reply received" ||
+    title?.toLowerCase().includes("message") ||
+    title?.toLowerCase().includes("reply")
+  ) {
+    return `/mail/inbox?id=${referenceId}`;
+  }
+
+  // News Article notifications use UUID (string) for article id; referenceId is number, so no view link for now
+  return null;
+}
+
 /**
  * Check if a user should receive email notifications for a specific type
  * Implements hierarchical logic: parent OFF = all children OFF
