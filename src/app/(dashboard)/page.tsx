@@ -59,14 +59,15 @@ export default function DashboardPage() {
     );
   }
 
-  // Normalize role to lowercase and trim for comparison
-  const normalizedRole = user.role?.toLowerCase().trim() || "staff";
+  // Normalize values for comparison
+  const normalizedRole = user.role?.toLowerCase().trim() || "user";
+  const normalizedDept = user.department?.toLowerCase().trim() || "";
   const isManager = user.isManager || false;
 
-  // Priority: Admin > Manager (if isManager flag) > Role-based > Default Staff
+  // Priority: Admin (role=admin OR dept=admin) > HR dept > Manager flag > Default Staff
 
-  // Admin always gets admin dashboard
-  if (normalizedRole === "admin") {
+  // Admin-level users always get admin dashboard
+  if (normalizedRole === "admin" || normalizedDept === "admin") {
     return (
       <div>
         <AdminDashboard employeeId={user.id} />
@@ -74,7 +75,16 @@ export default function DashboardPage() {
     );
   }
 
-  // If user has manager flag and is not admin, show manager dashboard
+  // HR department gets HR dashboard
+  if (normalizedDept === "hr") {
+    return (
+      <div>
+        <HrDashboard />
+      </div>
+    );
+  }
+
+  // Managers get manager dashboard
   if (isManager) {
     return (
       <div>
@@ -83,35 +93,10 @@ export default function DashboardPage() {
     );
   }
 
-  // Role-based dashboards
-  switch (normalizedRole) {
-    case "hr":
-    case "human resources":
-    case "humanresource":
-    case "human-resources":
-      return (
-        <div>
-          <HrDashboard />
-        </div>
-      );
-
-    case "finance":
-    case "accounting":
-    case "accountant":
-      return (
-        <div>
-          <StaffDashboard />
-        </div>
-      );
-
-    default:
-      // Default fallback: Show staff dashboard for any unrecognized role
-      // This ensures ALL users get a dashboard, even if their role is not explicitly handled
-      // Handles: "staff", "employee", "user", "", null, undefined, and any other values
-      return (
-        <div>
-          <StaffDashboard />
-        </div>
-      );
-  }
+  // All other users (finance, operations, etc.) get staff dashboard
+  return (
+    <div>
+      <StaffDashboard />
+    </div>
+  );
 }

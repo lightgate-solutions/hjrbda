@@ -61,7 +61,11 @@ export async function updateEmployee(
   }>,
 ) {
   await requireHROrAdmin();
-  const processedUpdates: any = { ...updates, updatedAt: new Date() };
+  const processedUpdates: any = {
+    ...updates,
+    isManager: true,
+    updatedAt: new Date(),
+  };
 
   for (const key in processedUpdates) {
     if (processedUpdates[key] === "") {

@@ -27,7 +27,6 @@ import { cn } from "@/lib/utils";
 import { createUser } from "@/actions/auth/auth";
 import { toast } from "sonner";
 import { getManagers } from "@/actions/auth/users";
-import { Switch } from "@/components/ui/switch";
 
 const userSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -65,7 +64,7 @@ export function UserAddDialog({
     password: "",
     role: "user" as "user" | "admin",
     autoVerify: true,
-    isManager: false,
+    isManager: true,
   });
 
   const [employeeData, setEmployeeData] = useState({
@@ -168,7 +167,7 @@ export function UserAddDialog({
         password: "",
         role: "user",
         autoVerify: true,
-        isManager: false,
+        isManager: true,
       });
       setEmployeeData({
         phone: "",
@@ -258,20 +257,6 @@ export function UserAddDialog({
               <SelectItem value="admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Label htmlFor="isManager" className="cursor-pointer">
-            Is user a manager?
-          </Label>
-          <Switch
-            name="isManager"
-            checked={formData.isManager}
-            onCheckedChange={(checked) => {
-              setFormData((p) => ({ ...p, isManager: checked }));
-              validateField("isManager", checked);
-            }}
-          />
         </div>
 
         <div className="grid gap-2">

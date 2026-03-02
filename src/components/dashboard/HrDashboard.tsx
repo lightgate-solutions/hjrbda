@@ -71,18 +71,18 @@ export default function HrDashboard() {
               <div className="rounded-lg bg-primary/10 p-2">
                 <UserCheck className="size-4 text-primary" />
               </div>
-              User Management
+              HR Documents
             </CardTitle>
             <CardDescription className="text-sm">
-              Manage user accounts and permissions
+              Access HR-related documents and records
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link
-              href="/hr/admin"
+              href="/documents"
               className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1.5 group/link"
             >
-              Manage users
+              View documents
               <svg
                 className="size-3 transition-transform group-hover/link:translate-x-0.5"
                 fill="none"

@@ -40,9 +40,10 @@ export async function GET() {
       );
     }
 
-    // Normalize role check like other endpoints
+    // isAdmin: Better Auth role is "admin" OR employee department is "admin"
     const normalizedRole = role?.toLowerCase().trim() || "";
-    const isAdmin = normalizedRole === "admin";
+    const isAdmin =
+      normalizedRole === "admin" || employee.department === "admin";
 
     // Document stats - simplified query
     let documentCount = 0;

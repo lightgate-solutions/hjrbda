@@ -1,25 +1,14 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/actions/auth/dal";
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
-    const h = await headers();
-    const session = await auth.api.getSession({ headers: h });
-    const authUserId = session?.user?.id;
-    const role = session?.user?.role;
-
-    if (!authUserId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Only admin can see activity trends - normalize role like dashboard does
-    const normalizedRole = role?.toLowerCase().trim() || "";
-    if (normalizedRole !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    // Only admin-level users can see activity trends (role=admin OR department=admin)
+    await requireAdmin();
 
     // Get date 30 days ago
     const thirtyDaysAgo = new Date();
@@ -118,8 +107,15 @@ export async function GET() {
 
     return NextResponse.json({ trends: filledTrends });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.startsWith("Unauthorized")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (error.message.startsWith("Forbidden")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
     console.error("Error fetching activity trends:", error);
-    // Return empty array on error
     return NextResponse.json({ trends: [] }, { status: 200 });
   }
 }

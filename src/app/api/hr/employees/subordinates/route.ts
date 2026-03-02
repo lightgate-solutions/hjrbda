@@ -2,9 +2,14 @@ import { db } from "@/db";
 import { employees } from "@/db/schema";
 import { and, eq, ilike, or } from "drizzle-orm";
 import { type NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/actions/auth/dal";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth();
+
     const { searchParams } = request.nextUrl;
     const id = searchParams.get("employeeId");
     const q = searchParams.get("q") || "";
@@ -20,7 +25,6 @@ export async function GET(request: NextRequest) {
       .where(eq(employees.id, Number(id)))
       .limit(1);
     const employeeId = res.id;
-    console.log(employeeId);
     if (!employeeId) {
       return NextResponse.json(
         { error: "employeeId is required" },

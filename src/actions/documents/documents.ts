@@ -890,7 +890,9 @@ export async function updateDocumentPublic(
             (a.userId === user.id ||
               (a.department && a.department === user.department)) &&
             a.accessLevel === "manage",
-        ) || user.department === "admin";
+        ) ||
+        user.department === "admin" ||
+        user.role === "admin";
 
       if (!(isOwner || hasManageAccess)) {
         throw new Error("Access denied");
@@ -961,7 +963,9 @@ export async function updateDepartmentAccess(
             (a.userId === user.id ||
               (a.department && a.department === user.department)) &&
             a.accessLevel === "manage",
-        ) || user.department === "admin";
+        ) ||
+        user.department === "admin" ||
+        user.role === "admin";
 
       if (!(isOwner || hasManageAccess)) {
         throw new Error("Access denied");
@@ -1443,7 +1447,8 @@ export async function getMyDocumentAccess(documentId: number) {
         return {
           level: "manage" as const,
           isOwner: true,
-          isAdminDepartment: user.department === "admin",
+          isAdminDepartment:
+            user.department === "admin" || user.role === "admin",
         };
       }
 
@@ -1483,7 +1488,7 @@ export async function getMyDocumentAccess(documentId: number) {
       return {
         level: best,
         isOwner: false,
-        isAdminDepartment: user.department === "admin",
+        isAdminDepartment: user.department === "admin" || user.role === "admin",
       };
     });
 

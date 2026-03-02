@@ -93,16 +93,8 @@ export async function GET() {
       .orderBy(desc(document.createdAt)) // Order by createdAt to show newest uploads first
       .limit(5); // Get top 5 most recent
 
-    // Debug logging
-    console.log(
-      `[Manager Documents API] Manager ${employee.id} found ${recentDocs.length} documents`,
-    );
-
     // If no documents found, try without version filter
     if (recentDocs.length === 0) {
-      console.log(
-        `[Manager Documents API] No documents with currentVersionId > 0, checking all documents...`,
-      );
       recentDocs = await db
         .select({
           id: document.id,
@@ -123,27 +115,10 @@ export async function GET() {
         .where(and(eq(document.status, "active"), whereClause))
         .orderBy(desc(document.createdAt))
         .limit(5);
-
-      console.log(
-        `[Manager Documents API] Found ${recentDocs.length} documents without version filter`,
-      );
     }
 
     // Filter out documents without valid IDs or names
-    // Accept documents even if currentVersionId is 0 (might be in transition or fallback query)
-    const validDocs = recentDocs.filter((doc) => {
-      const isValid = doc.id && doc.name;
-      if (isValid && (!doc.currentVersionId || doc.currentVersionId === 0)) {
-        console.log(
-          `[Manager Documents API] Including document ${doc.id} with currentVersionId=0 (might be in transition)`,
-        );
-      }
-      return isValid;
-    });
-
-    console.log(
-      `[Manager Documents API] After filtering: ${validDocs.length} valid documents`,
-    );
+    const validDocs = recentDocs.filter((doc) => doc.id && doc.name);
 
     const formattedDocs = validDocs.map((doc) => {
       const date = new Date(doc.uploadedDate || new Date());

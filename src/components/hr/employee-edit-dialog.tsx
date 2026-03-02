@@ -25,7 +25,6 @@ import { useState } from "react";
 import { getAllEmployees, updateEmployee } from "@/actions/hr/employees";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Switch } from "../ui/switch";
 
 const employeeSchema = z.object({
   name: z.string().min(2),
@@ -299,25 +298,6 @@ export default function EmployeeEditForm({
                         )) ?? <SelectItem value="none">No Manager</SelectItem>}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div>
-            <FormField
-              control={form.control}
-              name="isManager"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Is user a manager?</FormLabel>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

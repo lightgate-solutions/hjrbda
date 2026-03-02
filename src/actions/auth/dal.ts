@@ -76,33 +76,47 @@ export const requireAuth = cache(async () => {
   return { userId: session.user.id, role: session.user.role, employee: user };
 });
 
+// Helper to check if a user has admin-level access:
+// - Better Auth role is "admin", OR
+// - Employee department is "admin"
+const isAdminAccess = (
+  role: string | null | undefined,
+  department: string | null | undefined,
+) => role === "admin" || department === "admin";
+
 // Helper to require admin role
 export const requireAdmin = cache(async () => {
   const authData = await requireAuth();
 
-  if (authData.role !== "admin") {
+  if (!isAdminAccess(authData.role, authData.employee.department)) {
     throw new Error("Forbidden: Admin access required");
   }
 
   return authData;
 });
 
-// Helper to require HR or admin role
+// Helper to require HR or admin access
+// Accessible when: department === "hr" OR isAdmin (role=admin OR department=admin)
 export const requireHROrAdmin = cache(async () => {
   const authData = await requireAuth();
 
-  if (authData.role !== "admin" && authData.role !== "hr") {
+  const isAdmin = isAdminAccess(authData.role, authData.employee.department);
+  const isHR = authData.employee.department === "hr";
+
+  if (!isAdmin && !isHR) {
     throw new Error("Forbidden: HR or Admin access required");
   }
 
   return authData;
 });
 
-// Helper to require manager role
+// Helper to require manager or admin access
 export const requireManager = cache(async () => {
   const authData = await requireAuth();
 
-  if (!authData.employee.isManager && authData.role !== "admin") {
+  const isAdmin = isAdminAccess(authData.role, authData.employee.department);
+
+  if (!authData.employee.isManager && !isAdmin) {
     throw new Error("Forbidden: Manager or Admin access required");
   }
 

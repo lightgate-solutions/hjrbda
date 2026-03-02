@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAdmin } from "@/actions/auth/dal";
 import { redirect } from "next/navigation";
 import { ExportCenter } from "@/components/logs/export-center";
 import type { Metadata } from "next";
@@ -10,17 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default async function LogsPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    redirect("/auth/login");
-  }
-
-  const userRole = session.user.role?.toLowerCase().trim();
-  if (userRole !== "admin") {
-    redirect("/");
+  try {
+    await requireAdmin();
+  } catch {
+    redirect("/unauthorized");
   }
 
   return (

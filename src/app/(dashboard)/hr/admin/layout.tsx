@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAdmin } from "@/actions/auth/dal";
 import { redirect } from "next/navigation";
 
 export default async function AdminLayout({
@@ -7,11 +6,9 @@ export default async function AdminLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session || session.user.role !== "admin") {
+  try {
+    await requireAdmin();
+  } catch {
     return redirect("/unauthorized");
   }
 

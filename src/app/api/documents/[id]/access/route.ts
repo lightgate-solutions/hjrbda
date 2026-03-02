@@ -32,7 +32,8 @@ export async function GET(
         return {
           level: "manage" as const,
           isOwner: true,
-          isAdminDepartment: user.department === "admin",
+          isAdminDepartment:
+            user.department === "admin" || user.role === "admin",
         };
       }
 
@@ -72,7 +73,7 @@ export async function GET(
       return {
         level: best,
         isOwner: false,
-        isAdminDepartment: user.department === "admin",
+        isAdminDepartment: user.department === "admin" || user.role === "admin",
       };
     });
 
