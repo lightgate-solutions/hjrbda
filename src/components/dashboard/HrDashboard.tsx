@@ -1,5 +1,3 @@
-"use client";
-
 import { DashboardStats } from "./dashboard-stats";
 import { Users, UserCheck } from "lucide-react";
 import {

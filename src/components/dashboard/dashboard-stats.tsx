@@ -16,12 +16,12 @@ interface DashboardStats {
 }
 
 interface DashboardStatsProps {
-  userRole?: "admin" | "manager" | "finance" | "hr" | "staff";
+  userRole?: "admin" | "manager" | "finance" | "hr" | "operations";
   isManager?: boolean;
 }
 
 export function DashboardStats({
-  userRole: _userRole = "staff",
+  userRole: _userRole = "operations",
   isManager: _isManager = false,
 }: DashboardStatsProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
