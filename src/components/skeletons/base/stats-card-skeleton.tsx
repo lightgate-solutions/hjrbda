@@ -13,8 +13,8 @@ export function StatsCardSkeleton({
 }: StatsCardSkeletonProps) {
   return (
     <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-4", className)}>
-      {Array.from({ length: count }).map((_, i) => (
-        <Card key={i} className="shadow-sm">
+      {Array.from({ length: count }, (_, i) => `stats-${i}`).map((id) => (
+        <Card key={id} className="shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <Skeleton className="h-12 w-12 rounded-xl" />

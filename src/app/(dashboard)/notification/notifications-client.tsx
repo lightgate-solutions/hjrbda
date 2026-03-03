@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,7 @@ import dayjs from "dayjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { getNotificationViewUrl } from "@/lib/notification-view-url";
 
 interface Notification {
   _id: Id<"notifications">;
@@ -31,6 +33,9 @@ export default function NotificationsClient({
   const notifications = useQuery(api.notifications.getUserNotifications, {
     userId: employeeId,
   });
+  const list: Notification[] = Array.isArray(notifications)
+    ? notifications
+    : [];
 
   const markAsReadMutation = useMutation(api.notifications.markAsRead);
   const markAllAsReadMutation = useMutation(api.notifications.markAllAsRead);
@@ -43,7 +48,10 @@ export default function NotificationsClient({
 
   const handleMarkAsRead = async (id: Id<"notifications">) => {
     try {
-      await markAsReadMutation({ id });
+      const userId = Number(employeeId);
+      await markAsReadMutation(
+        Number.isFinite(userId) ? { id, userId } : { id },
+      );
     } catch (err) {
       console.error("Error marking notification as read:", err);
     }
@@ -97,7 +105,7 @@ export default function NotificationsClient({
         <div className="flex justify-center items-center h-[70vh]">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      ) : notifications?.length === 0 ? (
+      ) : list.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[70vh] text-center space-y-3">
           <Bell className="h-8 w-8 text-muted-foreground" />
           <p className="text-muted-foreground">No notifications yet</p>
@@ -118,7 +126,7 @@ export default function NotificationsClient({
               Clear All
             </Button>
           </div>
-          {notifications?.map((n) => (
+          {list.map((n) => (
             <Card
               key={n._id}
               className={`transition-all relative ${n.isRead ? "opacity-70" : "border-primary"} hover:shadow-md cursor-pointer`}
@@ -160,7 +168,21 @@ export default function NotificationsClient({
                 </p>
               </CardContent>
 
-              <div className="absolute bottom-3 right-3">
+              <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                {(() => {
+                  const viewUrl = getNotificationViewUrl(n);
+                  return viewUrl ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-7 px-3 text-xs"
+                    >
+                      <Link href={viewUrl}>View</Link>
+                    </Button>
+                  ) : null;
+                })()}
                 <Button
                   variant="outline"
                   size="sm"

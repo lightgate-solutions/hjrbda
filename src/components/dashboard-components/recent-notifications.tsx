@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Bell, Mail, CheckSquare } from "lucide-react";
+import { getNotificationViewUrl } from "@/lib/notification-view-url";
 import {
   Card,
   CardContent,
@@ -94,9 +95,8 @@ export default function RecentNotifications({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: Static array for loading skeletons
-              <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            {Array.from({ length: 3 }, (_, i) => `notif-${i}`).map((id) => (
+              <Skeleton key={id} className="h-20 w-full rounded-lg" />
             ))}
           </div>
         </CardContent>
@@ -145,11 +145,12 @@ export default function RecentNotifications({
             const Icon = getNotificationIcon(notif.notificationType);
             const iconColor = getNotificationColor(notif.notificationType);
             const timeAgo = dayjs(notif._creationTime).fromNow();
+            const viewUrl = getNotificationViewUrl(notif);
 
             return (
               <Link
                 key={notif._id}
-                href="/notification"
+                href={viewUrl ?? "/notification"}
                 className={`block p-3 rounded-lg border transition-all backdrop-blur-sm ${
                   notif.isRead
                     ? "border-amber-100/50 dark:border-gray-800 bg-white/60 dark:bg-gray-800/30"

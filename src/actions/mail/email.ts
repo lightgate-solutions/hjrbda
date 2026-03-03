@@ -1109,7 +1109,7 @@ export async function markEmailAsRead(emailId: number) {
       };
     }
 
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [recipient] = await tx
         .select()
         .from(emailRecipient)
@@ -1159,6 +1159,14 @@ export async function markEmailAsRead(emailId: number) {
         error: null,
       };
     });
+
+    if (result.success) {
+      const { markNotificationsAsReadByReference } = await import(
+        "@/actions/notification/notification"
+      );
+      await markNotificationsAsReadByReference(emailId);
+    }
+    return result;
   } catch (error) {
     return {
       success: false,

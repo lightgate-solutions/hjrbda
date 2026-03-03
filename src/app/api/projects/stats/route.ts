@@ -10,6 +10,10 @@ export async function GET(request: NextRequest) {
     const isAdmin =
       employee.role.toLowerCase() === "admin" ||
       employee.department.toLowerCase() === "admin";
+    const isHrOrOperations =
+      employee.department.toLowerCase() === "hr" ||
+      employee.department.toLowerCase() === "operations";
+    const canViewAll = isAdmin || isHrOrOperations;
 
     const searchParams = request.nextUrl.searchParams;
     const q = searchParams.get("q") || "";
@@ -26,7 +30,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!isAdmin) {
+    if (!canViewAll) {
       const accessFilter = or(
         eq(projects.creatorId, employee.id),
         eq(projects.supervisorId, employee.id),

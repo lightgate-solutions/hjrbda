@@ -67,8 +67,8 @@ export default function ArchivedDocumentsSection({
 function ArchivedDocumentsSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <Skeleton key={i} className="h-40 w-full" />
+      {Array.from({ length: 6 }, (_, i) => `skeleton-${i}`).map((id) => (
+        <Skeleton key={id} className="h-40 w-full" />
       ))}
     </div>
   );

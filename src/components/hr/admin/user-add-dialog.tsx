@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSelectMounted } from "@/hooks/use-select-mounted";
 import * as z from "zod";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -81,6 +82,7 @@ export function UserAddDialog({
       | "Contract"
       | "Intern",
   });
+  const selectMounted = useSelectMounted();
   const [managers, setManagers] = useState<{ id: number; name: string }[]>([]);
 
   // Fetch managers
@@ -242,42 +244,49 @@ export function UserAddDialog({
 
         <div className="grid gap-2">
           <Label htmlFor="role">Role *</Label>
-          <Select
-            value={formData.role}
-            onValueChange={(value: "admin" | "user") => {
-              setFormData((p) => ({ ...p, role: value }));
-              validateField("role", value);
-            }}
-          >
-            <SelectTrigger name="role" className="w-full">
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="user">User</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-full rounded-md border bg-muted" />
+          ) : (
+            <Select
+              value={formData.role}
+              onValueChange={(value: "admin" | "user") => {
+                setFormData((p) => ({ ...p, role: value }));
+                validateField("role", value);
+              }}
+            >
+              <SelectTrigger name="role" className="w-full">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="department">Department *</Label>
-          <Select
-            value={employeeData.department}
-            onValueChange={(value: string) => {
-              setEmployeeData((prev) => ({ ...prev, department: value }));
-              validateField("department", value);
-            }}
-          >
-            <SelectTrigger id="department" className="w-full">
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="hr">HR</SelectItem>
-              <SelectItem value="finance">Finance</SelectItem>
-              <SelectItem value="operations">Operations</SelectItem>
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-full rounded-md border bg-muted" />
+          ) : (
+            <Select
+              value={employeeData.department}
+              onValueChange={(value: string) => {
+                setEmployeeData((prev) => ({ ...prev, department: value }));
+                validateField("department", value);
+              }}
+            >
+              <SelectTrigger id="department" className="w-full">
+                <SelectValue placeholder="Select department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="hr">HR</SelectItem>
+                <SelectItem value="operations">Operations</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           {errors.department && (
             <p className="text-sm text-red-500">{errors.department}</p>
           )}
@@ -285,23 +294,27 @@ export function UserAddDialog({
 
         <div className="grid gap-2">
           <Label htmlFor="managerId">Manager</Label>
-          <Select
-            value={employeeData.managerId}
-            onValueChange={(value: string) =>
-              setEmployeeData((prev) => ({ ...prev, managerId: value }))
-            }
-          >
-            <SelectTrigger name="managerId" className="w-full">
-              <SelectValue placeholder="Select employee's manager" />
-            </SelectTrigger>
-            <SelectContent>
-              {managers.map((m) => (
-                <SelectItem key={m.id} value={m.id.toString()}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-full rounded-md border bg-muted" />
+          ) : (
+            <Select
+              value={employeeData.managerId}
+              onValueChange={(value: string) =>
+                setEmployeeData((prev) => ({ ...prev, managerId: value }))
+              }
+            >
+              <SelectTrigger name="managerId" className="w-full">
+                <SelectValue placeholder="Select employee's manager" />
+              </SelectTrigger>
+              <SelectContent>
+                {managers.map((m) => (
+                  <SelectItem key={m.id} value={m.id.toString()}>
+                    {m.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div className="grid gap-2">
@@ -354,44 +367,54 @@ export function UserAddDialog({
 
         <div className="grid gap-2">
           <Label htmlFor="maritalStatus">Marital Status</Label>
-          <Select
-            value={employeeData.maritalStatus}
-            onValueChange={(
-              value: "Married" | "Single" | "Divorced" | "Widowed",
-            ) => setEmployeeData((prev) => ({ ...prev, maritalStatus: value }))}
-          >
-            <SelectTrigger name="maritalStatus" className="w-full">
-              <SelectValue placeholder="Select marital status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Married">Married</SelectItem>
-              <SelectItem value="Single">Single</SelectItem>
-              <SelectItem value="Divorced">Divorced</SelectItem>
-              <SelectItem value="Widowed">Widowed</SelectItem>
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-full rounded-md border bg-muted" />
+          ) : (
+            <Select
+              value={employeeData.maritalStatus}
+              onValueChange={(
+                value: "Married" | "Single" | "Divorced" | "Widowed",
+              ) =>
+                setEmployeeData((prev) => ({ ...prev, maritalStatus: value }))
+              }
+            >
+              <SelectTrigger name="maritalStatus" className="w-full">
+                <SelectValue placeholder="Select marital status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Married">Married</SelectItem>
+                <SelectItem value="Single">Single</SelectItem>
+                <SelectItem value="Divorced">Divorced</SelectItem>
+                <SelectItem value="Widowed">Widowed</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div className="grid gap-2">
           <Label htmlFor="employmentType">Employment Type</Label>
-          <Select
-            value={employeeData.employmentType}
-            onValueChange={(
-              value: "Full-time" | "Part-time" | "Contract" | "Intern",
-            ) =>
-              setEmployeeData((prev) => ({ ...prev, employmentType: value }))
-            }
-          >
-            <SelectTrigger name="employmentType" className="w-full">
-              <SelectValue placeholder="Select employment type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Full-time">Full-Time</SelectItem>
-              <SelectItem value="Part-time">Part-Time</SelectItem>
-              <SelectItem value="Contract">Contract</SelectItem>
-              <SelectItem value="Intern">Intern</SelectItem>
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-full rounded-md border bg-muted" />
+          ) : (
+            <Select
+              value={employeeData.employmentType}
+              onValueChange={(
+                value: "Full-time" | "Part-time" | "Contract" | "Intern",
+              ) =>
+                setEmployeeData((prev) => ({ ...prev, employmentType: value }))
+              }
+            >
+              <SelectTrigger name="employmentType" className="w-full">
+                <SelectValue placeholder="Select employment type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Full-time">Full-Time</SelectItem>
+                <SelectItem value="Part-time">Part-Time</SelectItem>
+                <SelectItem value="Contract">Contract</SelectItem>
+                <SelectItem value="Intern">Intern</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <div className="grid gap-2 col-span-2">

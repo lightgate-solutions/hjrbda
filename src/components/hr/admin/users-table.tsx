@@ -115,6 +115,9 @@ export function UsersTable() {
     dedupingInterval: 2000,
   });
 
+  const [selectMounted, setSelectMounted] = useState(false);
+  useEffect(() => setSelectMounted(true), []);
+
   const handleActionComplete = () => {
     mutate();
   };
@@ -137,49 +140,53 @@ export function UsersTable() {
             }}
           />
         </div>
-        {/* Role select with icon */}
-        <Select
-          value={role}
-          onValueChange={(v) => {
-            setRole(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[140px] flex items-center gap-2">
-            <span className="flex items-center gap-2">
-              {role === "all" ? (
-                <Users className="w-4 h-4" />
-              ) : role === "admin" ? (
-                <Shield className="w-4 h-4" />
-              ) : (
-                <User className="w-4 h-4" />
-              )}
-              {role === "all"
-                ? "All Roles"
-                : role.charAt(0).toUpperCase() + role.slice(1)}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
+        {/* Role select — render after mount to avoid Radix aria-controls hydration mismatch */}
+        {!selectMounted ? (
+          <div className="h-9 w-[140px] rounded-md border bg-background flex items-center gap-2 px-3" />
+        ) : (
+          <Select
+            value={role}
+            onValueChange={(v) => {
+              setRole(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[140px] flex items-center gap-2">
               <span className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                All Roles
+                {role === "all" ? (
+                  <Users className="w-4 h-4" />
+                ) : role === "admin" ? (
+                  <Shield className="w-4 h-4" />
+                ) : (
+                  <User className="w-4 h-4" />
+                )}
+                {role === "all"
+                  ? "All Roles"
+                  : role.charAt(0).toUpperCase() + role.slice(1)}
               </span>
-            </SelectItem>
-            <SelectItem value="admin">
-              <span className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Admin
-              </span>
-            </SelectItem>
-            <SelectItem value="user">
-              <span className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                User
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                <span className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  All Roles
+                </span>
+              </SelectItem>
+              <SelectItem value="admin">
+                <span className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </span>
+              </SelectItem>
+              <SelectItem value="user">
+                <span className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  User
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <Button
         type="button"
@@ -242,9 +249,11 @@ export function UsersTable() {
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     <div className="flex -space-x-2">
-                      {Array.from({ length: 2 }).map((_, i) => (
-                        <Skeleton key={i} className="h-8 w-8 rounded-full" />
-                      ))}
+                      {Array.from({ length: 2 }, (_, i) => `avatar-${i}`).map(
+                        (id) => (
+                          <Skeleton key={id} className="h-8 w-8 rounded-full" />
+                        ),
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3">
@@ -397,9 +406,14 @@ export function UsersTable() {
                     </TableCell>
                     <TableCell className="px-4 py-3">
                       <div className="flex -space-x-2">
-                        {Array.from({ length: 2 }).map((_, i) => (
-                          <Skeleton key={i} className="h-8 w-8 rounded-full" />
-                        ))}
+                        {Array.from({ length: 2 }, (_, i) => `avatar-${i}`).map(
+                          (id) => (
+                            <Skeleton
+                              key={id}
+                              className="h-8 w-8 rounded-full"
+                            />
+                          ),
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="px-4 py-3">

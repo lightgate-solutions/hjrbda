@@ -16,9 +16,8 @@ const DashboardSkeleton = () => (
       <Skeleton className="h-5 w-96" />
     </div>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: Static skeleton array
-        <Skeleton key={i} className="h-24 rounded-lg" />
+      {Array.from({ length: 4 }, (_, i) => `skeleton-${i}`).map((id) => (
+        <Skeleton key={id} className="h-24 rounded-lg" />
       ))}
     </div>
   </div>

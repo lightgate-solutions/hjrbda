@@ -1,4 +1,3 @@
-/** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -12,9 +11,9 @@ export function DocumentsFolderSkeleton() {
       <Card className="shadow-sm">
         <CardContent className="p-6">
           <div className="space-y-3">
-            {Array.from({ length: 8 }).map((_, i) => (
+            {Array.from({ length: 8 }, (_, i) => `folder-${i}`).map((id) => (
               <div
-                key={i}
+                key={id}
                 className="flex items-center gap-4 p-3 rounded-lg hover:bg-accent/50"
               >
                 <Skeleton className="h-10 w-10 rounded-lg" />

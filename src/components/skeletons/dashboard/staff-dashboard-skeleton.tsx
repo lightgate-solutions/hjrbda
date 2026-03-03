@@ -59,9 +59,9 @@ export function StaffDashboardSkeleton() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
+              {Array.from({ length: 3 }, (_, i) => `task-${i}`).map((id) => (
                 <div
-                  key={i}
+                  key={id}
                   className="flex items-start justify-between border-b border-purple-100/50 dark:border-gray-800 pb-3 last:border-0"
                 >
                   <div className="space-y-2 flex-1">
@@ -96,21 +96,23 @@ export function StaffDashboardSkeleton() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-start justify-between border-b border-emerald-100/50 dark:border-gray-800 pb-3 last:border-0"
-                >
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-5 w-3/4" />
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-6 w-16 rounded-full" />
-                      <Skeleton className="h-4 w-20" />
+              {Array.from({ length: 4 }, (_, i) => `assigned-${i}`).map(
+                (id) => (
+                  <div
+                    key={id}
+                    className="flex items-start justify-between border-b border-emerald-100/50 dark:border-gray-800 pb-3 last:border-0"
+                  >
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-5 w-3/4" />
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-6 w-16 rounded-full" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
                     </div>
+                    <Skeleton className="h-2 w-2 rounded-full mt-2" />
                   </div>
-                  <Skeleton className="h-2 w-2 rounded-full mt-2" />
-                </div>
-              ))}
+                ),
+              )}
             </div>
             <div className="mt-4 pt-3 border-t border-emerald-100/50 dark:border-gray-800">
               <Skeleton className="h-4 w-24" />
@@ -133,9 +135,9 @@ export function StaffDashboardSkeleton() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
+              {Array.from({ length: 4 }, (_, i) => `doc-${i}`).map((id) => (
                 <div
-                  key={i}
+                  key={id}
                   className="flex items-start justify-between border-b border-purple-100/50 dark:border-gray-800 pb-3 last:border-0"
                 >
                   <div className="space-y-2 flex-1">

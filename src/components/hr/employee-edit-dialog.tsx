@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useSelectMounted } from "@/hooks/use-select-mounted";
 import { getAllEmployees, updateEmployee } from "@/actions/hr/employees";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -76,6 +77,7 @@ export default function EmployeeEditForm({
       employmentType: employee.employmentType || "",
     },
   });
+  const selectMounted = useSelectMounted();
 
   async function onSubmit(values: EmployeeFormValues) {
     setIsSubmitting(true);
@@ -186,20 +188,24 @@ export default function EmployeeEditForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Department</FormLabel>
-                  <Select
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="hr">HR</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="operations">Operations</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {!selectMounted ? (
+                    <div className="h-9 w-full rounded-md border bg-muted" />
+                  ) : (
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="hr">HR</SelectItem>
+                        <SelectItem value="finance">Finance</SelectItem>
+                        <SelectItem value="operations">Operations</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -213,19 +219,23 @@ export default function EmployeeEditForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Employment Type</FormLabel>
-                  <Select
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select employment type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Full-time">Full-time</SelectItem>
-                      <SelectItem value="Part-time">Part-time</SelectItem>
-                      <SelectItem value="Contract">Contract</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {!selectMounted ? (
+                    <div className="h-9 w-full rounded-md border bg-muted" />
+                  ) : (
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select employment type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Full-time">Full-time</SelectItem>
+                        <SelectItem value="Part-time">Part-time</SelectItem>
+                        <SelectItem value="Contract">Contract</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -237,20 +247,24 @@ export default function EmployeeEditForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Marital Status</FormLabel>
-                  <Select
-                    value={field.value || ""}
-                    onValueChange={field.onChange}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select marital status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Single">Single</SelectItem>
-                      <SelectItem value="Married">Married</SelectItem>
-                      <SelectItem value="Divorced">Divorced</SelectItem>
-                      <SelectItem value="Widowed">Widowed</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {!selectMounted ? (
+                    <div className="h-9 w-full rounded-md border bg-muted" />
+                  ) : (
+                    <Select
+                      value={field.value || ""}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select marital status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Single">Single</SelectItem>
+                        <SelectItem value="Married">Married</SelectItem>
+                        <SelectItem value="Divorced">Divorced</SelectItem>
+                        <SelectItem value="Widowed">Widowed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -278,26 +292,32 @@ export default function EmployeeEditForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Manager</FormLabel>
-                  <Select
-                    value={field.value ?? "none"}
-                    onValueChange={(val) =>
-                      field.onChange(val === "none" ? null : val)
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Assign Manager</SelectItem>
-                      {employees
-                        .filter((e: any) => e.isManager === true)
-                        .map((mgr: any) => (
-                          <SelectItem key={mgr.id} value={mgr.id.toString()}>
-                            {mgr.name}
-                          </SelectItem>
-                        )) ?? <SelectItem value="none">No Manager</SelectItem>}
-                    </SelectContent>
-                  </Select>
+                  {!selectMounted ? (
+                    <div className="h-9 w-full rounded-md border bg-muted" />
+                  ) : (
+                    <Select
+                      value={field.value ?? "none"}
+                      onValueChange={(val) =>
+                        field.onChange(val === "none" ? null : val)
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select manager" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Assign Manager</SelectItem>
+                        {employees
+                          .filter((e: any) => e.isManager === true)
+                          .map((mgr: any) => (
+                            <SelectItem key={mgr.id} value={mgr.id.toString()}>
+                              {mgr.name}
+                            </SelectItem>
+                          )) ?? (
+                          <SelectItem value="none">No Manager</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

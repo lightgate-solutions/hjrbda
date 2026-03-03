@@ -18,6 +18,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
 
 export function NavMain({
   items,
@@ -71,7 +72,7 @@ export function NavMain({
                       {/* {item.icon && <item.icon />} */}
 
                       {item.title === "Notifications" ? (
-                        <div className="relative">
+                        <div className="relative flex items-center">
                           {item.icon &&
                             React.createElement(item.icon, {
                               className: cn(
@@ -81,9 +82,7 @@ export function NavMain({
                                   : "text-muted-foreground",
                               ),
                             })}
-                          {unreadCount > 0 && (
-                            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
-                          )}
+                          <NotificationCountBadge count={unreadCount} />
                         </div>
                       ) : (
                         item.icon &&

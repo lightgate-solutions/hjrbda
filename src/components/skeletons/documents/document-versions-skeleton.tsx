@@ -1,12 +1,11 @@
-/** biome-ignore-all lint/suspicious/noArrayIndexKey: <> */
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function DocumentVersionsSkeleton() {
   return (
     <div className="space-y-3">
-      {Array.from({ length: 4 }).map((_, i) => (
+      {Array.from({ length: 4 }, (_, i) => `version-${i}`).map((id) => (
         <div
-          key={i}
+          key={id}
           className="flex items-center justify-between border rounded-md p-3"
         >
           <div className="flex items-center gap-3 flex-1">

@@ -95,11 +95,8 @@ export const requireAdmin = cache(async () => {
   return authData;
 });
 
-// Helper to require HR or admin access
-// Accessible when: department === "hr" OR isAdmin (role=admin OR department=admin)
 export const requireHROrAdmin = cache(async () => {
   const authData = await requireAuth();
-
   const isAdmin = isAdminAccess(authData.role, authData.employee.department);
   const isHR = authData.employee.department === "hr";
 

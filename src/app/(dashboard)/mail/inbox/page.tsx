@@ -7,6 +7,7 @@ import {
   getEmailById,
   markEmailAsRead,
 } from "@/actions/mail/email";
+import { markNotificationsAsReadByReference } from "@/actions/notification/notification";
 import { MailContent } from "@/components/mail/mail-content";
 
 interface PageProps {
@@ -34,12 +35,11 @@ export default async function InboxPage({ searchParams }: PageProps) {
     if (emailResult.success && emailResult.data) {
       selectedEmail = emailResult.data;
 
-      // Mark as read if not already read
-      if (
-        emailResult.data.isRecipient &&
-        !emailResult.data.recipientStatus?.isRead
-      ) {
-        await markEmailAsRead(Number(emailId));
+      if (emailResult.data.isRecipient) {
+        if (!emailResult.data.recipientStatus?.isRead) {
+          await markEmailAsRead(Number(emailId));
+        }
+        await markNotificationsAsReadByReference(Number(emailId));
       }
     }
   }

@@ -25,8 +25,7 @@ import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
 import type { User } from "better-auth";
 import { useMemo } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useVisibleUnreadNotificationCount } from "@/hooks/use-visible-unread-notification-count";
 
 const data = {
   org: [
@@ -133,16 +132,18 @@ export function AppSidebar({
     employeeDepartment === "hr" ||
     employeeRole === "admin" ||
     employeeDepartment === "admin";
-  const notifications = useQuery(api.notifications.getUserNotifications, {
-    userId: employeeId,
-  });
-  const unreadCount = notifications?.filter((n) => !n.isRead).length;
+  const isOperations =
+    (employeeDepartment ?? "").toLowerCase().trim() === "operations";
+  const unreadCount = useVisibleUnreadNotificationCount(employeeId);
 
   const groupedItems = useMemo(() => {
     const base = [...data.navMain];
 
     // Filter base items based on role permissions
     const filteredBase = base.filter((item) => {
+      // Operations: hide Hr menu entirely
+      if (isOperations && item.title === "Hr") return false;
+      // Hr: filter sub-items based on role
       if (item.title === "Hr") {
         // Show Hr menu only to HR department and admin users
         return isHrOrAdmin;
@@ -226,7 +227,7 @@ export function AppSidebar({
     });
 
     return groups;
-  }, [isHrOrAdmin, isAdmin]);
+  }, [isHrOrAdmin, isAdmin, isOperations]);
 
   return (
     <Sidebar collapsible="icon" {...props}>

@@ -1,14 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog } from "../ui/dialog";
-import CreateFolderButton from "./folders/create-folder-button";
+import dynamic from "next/dynamic";
 import FoldersViewWrapper from "./folders/folders-view-wrapper";
-import UploadDocumentButton from "./upload-document-button";
 import { ViewToggle } from "./view-toggle/view-toggle";
 import { DocumentSearch } from "./document-search";
 import Link from "next/link";
 import { Archive, FileText, Search } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const DocumentActionsClient = dynamic(
+  () =>
+    import("./document-actions-client").then((m) => ({
+      default: m.DocumentActionsClient,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-10 w-36" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+    ),
+  },
+);
 
 export function DocumentsOverview({
   usersFolders,
@@ -38,19 +53,10 @@ export function DocumentsOverview({
           </div>
 
           <div className="flex items-center gap-2">
-            <Dialog>
-              <UploadDocumentButton
-                usersFolders={usersFolders}
-                department={department}
-              />
-            </Dialog>
-
-            <Dialog>
-              <CreateFolderButton
-                usersFolders={usersFolders}
-                department={department}
-              />
-            </Dialog>
+            <DocumentActionsClient
+              usersFolders={usersFolders}
+              department={department}
+            />
           </div>
         </div>
 

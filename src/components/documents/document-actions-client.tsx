@@ -1,34 +1,29 @@
-import { Dialog } from "@/components/ui/dialog";
-import UploadDocumentButton from "../upload-document-button";
-import CreateFolderButton from "./create-folder-button";
+"use client";
 
-export default async function FoldersActions({
+import { Dialog } from "@/components/ui/dialog";
+import UploadDocumentButton from "./upload-document-button";
+import CreateFolderButton from "./folders/create-folder-button";
+
+export function DocumentActionsClient({
   usersFolders,
   department,
-  lockFolder,
-  lockedFolderName,
 }: {
   usersFolders: { id: number; name: string; path?: string; updatedAt: Date }[];
   department: string;
-  lockFolder?: boolean;
-  lockedFolderName?: string;
 }) {
   const folderList = usersFolders.map((f) => ({
     name: f.name,
     path: f.path,
   }));
+
   return (
     <div className="flex items-center gap-2">
       <Dialog>
         <UploadDocumentButton
           usersFolders={folderList}
           department={department}
-          lockFolder={lockFolder}
-          lockedFolderName={lockedFolderName}
-          currentFolder={lockedFolderName ?? "personal"}
         />
       </Dialog>
-
       <Dialog>
         <CreateFolderButton
           usersFolders={usersFolders}

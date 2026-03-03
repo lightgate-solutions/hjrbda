@@ -29,8 +29,8 @@ export function SettingsPageSkeleton() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-2">
+            {Array.from({ length: 4 }, (_, i) => `setting-${i}`).map((id) => (
+              <div key={id} className="space-y-2">
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-full" />
               </div>
@@ -53,8 +53,8 @@ export function SettingsPageSkeleton() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-2">
+            {Array.from({ length: 3 }, (_, i) => `password-${i}`).map((id) => (
+              <div key={id} className="space-y-2">
                 <Skeleton className="h-5 w-32" />
                 <Skeleton className="h-10 w-full" />
               </div>

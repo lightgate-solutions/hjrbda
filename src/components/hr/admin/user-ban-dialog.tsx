@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSelectMounted } from "@/hooks/use-select-mounted";
 import { Label } from "@/components/ui/label";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,7 @@ export function UserBanDialog({
   const [reason, setReason] = useState("");
   const [banDuration, setBanDuration] = useState("7"); // Default to 7 days
   const [isLoading, setIsLoading] = useState(false);
+  const selectMounted = useSelectMounted();
 
   const handleBanUser = async () => {
     setIsLoading(true);
@@ -83,22 +85,26 @@ export function UserBanDialog({
         </div>
         <div className="grid gap-2">
           <Label htmlFor="banDuration">Ban duration *</Label>
-          <Select value={banDuration} onValueChange={setBanDuration}>
-            <SelectTrigger id="banDuration" className="w-full">
-              <SelectValue placeholder="Select duration" />
-            </SelectTrigger>
-            <SelectContent>
-              {BAN_DURATIONS.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="hover:bg-muted"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-full rounded-md border bg-muted" />
+          ) : (
+            <Select value={banDuration} onValueChange={setBanDuration}>
+              <SelectTrigger id="banDuration" className="w-full">
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent>
+                {BAN_DURATIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="hover:bg-muted"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
     </ConfirmationDialog>

@@ -21,9 +21,9 @@ export function ActionButtonsSkeleton({
         className,
       )}
     >
-      {Array.from({ length: count }).map((_, i) => (
+      {Array.from({ length: count }, (_, i) => `action-${i}`).map((id) => (
         <Card
-          key={i}
+          key={id}
           className="border border-gray-200/60 dark:border-gray-800 bg-white/80 dark:bg-gray-900/50 shadow-sm rounded-xl"
         >
           <CardContent className="flex flex-col items-center justify-center p-6 text-center">

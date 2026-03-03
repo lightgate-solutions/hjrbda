@@ -1,9 +1,19 @@
 "use server";
 
 import { db } from "@/db";
+import { account, session, user as authUser } from "@/db/schema/auth";
 import { employees } from "@/db/schema/hr";
 import { auth } from "@/lib/auth";
-import { DrizzleQueryError, eq } from "drizzle-orm";
+import {
+  DrizzleQueryError,
+  eq,
+  ilike,
+  and,
+  sql,
+  desc,
+  asc,
+  inArray,
+} from "drizzle-orm";
 import { headers } from "next/headers";
 
 export interface UserWithDetails {
@@ -149,6 +159,107 @@ export async function getUsers(
   });
 
   return { users, total: result.total ?? users.length };
+}
+
+/** List users by querying auth tables directly (for HR; bypasses Better Auth admin-only listUsers). */
+export async function listUsersFromDb(
+  options: GetUsersOptions = {},
+): Promise<{ users: UserWithDetails[]; total: number }> {
+  const limit = options.limit ?? 10;
+  const offset = options.offset ?? 0;
+  const conditions = [];
+  if (options.role) {
+    conditions.push(eq(authUser.role, options.role));
+  }
+  if (options.status === "banned") {
+    conditions.push(eq(authUser.banned, true));
+  } else if (options.status === "active") {
+    conditions.push(eq(authUser.banned, false));
+  }
+  if (options.email?.trim()) {
+    conditions.push(ilike(authUser.email, `%${options.email.trim()}%`));
+  }
+  if (options.name?.trim()) {
+    conditions.push(ilike(authUser.name, `%${options.name.trim()}%`));
+  }
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const orderBy =
+    options.sortBy === "createdAt"
+      ? options.sortDirection === "desc"
+        ? desc(authUser.createdAt)
+        : asc(authUser.createdAt)
+      : options.sortBy === "name"
+        ? options.sortDirection === "desc"
+          ? desc(authUser.name)
+          : asc(authUser.name)
+        : desc(authUser.createdAt);
+
+  const [usersRows, countResult] = await Promise.all([
+    db
+      .select()
+      .from(authUser)
+      .where(whereClause)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset),
+    whereClause
+      ? db
+          .select({ value: sql<number>`count(*)::int` })
+          .from(authUser)
+          .where(whereClause)
+      : db.select({ value: sql<number>`count(*)::int` }).from(authUser),
+  ]);
+  const total = Number(
+    (countResult[0] as { value: number } | undefined)?.value ?? 0,
+  );
+
+  const userIds = usersRows.map((u) => u.id);
+  if (userIds.length === 0) {
+    return { users: [], total };
+  }
+  const [accountsRows, sessionsRows] = await Promise.all([
+    db
+      .select({ userId: account.userId, providerId: account.providerId })
+      .from(account)
+      .where(inArray(account.userId, userIds)),
+    db
+      .select({ userId: session.userId, createdAt: session.createdAt })
+      .from(session)
+      .where(inArray(session.userId, userIds))
+      .orderBy(desc(session.createdAt)),
+  ]);
+
+  const accountsByUser: Record<string, string[]> = {};
+  for (const row of accountsRows) {
+    if (!accountsByUser[row.userId]) accountsByUser[row.userId] = [];
+    accountsByUser[row.userId].push(row.providerId);
+  }
+  const lastSignInByUser: Record<string, Date> = {};
+  for (const row of sessionsRows) {
+    if (
+      !lastSignInByUser[row.userId] ||
+      row.createdAt > lastSignInByUser[row.userId]
+    ) {
+      lastSignInByUser[row.userId] = row.createdAt;
+    }
+  }
+
+  const users: UserWithDetails[] = usersRows.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    verified: u.emailVerified ?? false,
+    role: u.role ?? undefined,
+    banned: u.banned ?? false,
+    banReason: u.banReason ?? undefined,
+    banExpires: u.banExpires ?? null,
+    accounts: accountsByUser[u.id] ?? [],
+    lastSignIn: lastSignInByUser[u.id] ?? null,
+    createdAt: u.createdAt,
+    avatarUrl: u.image ?? "",
+  }));
+
+  return { users, total };
 }
 
 export async function getManagers() {

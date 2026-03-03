@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
     const isAdmin =
       user.role.toLowerCase() === "admin" ||
       user.department.toLowerCase() === "admin";
+    const isHrOrOperations =
+      user.department.toLowerCase() === "hr" ||
+      user.department.toLowerCase() === "operations";
+    const canViewAll = isAdmin || isHrOrOperations;
 
     const searchParams = request.nextUrl.searchParams;
     const page = Number(searchParams.get("page") || "1");
@@ -51,7 +55,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!isAdmin) {
+    if (!canViewAll) {
       const accessFilter = or(
         eq(projects.creatorId, user.id),
         eq(projects.supervisorId, user.id),

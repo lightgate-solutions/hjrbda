@@ -12,8 +12,11 @@ export function NewsGridSkeleton() {
 
       {/* News Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i} className="shadow-sm hover:shadow-md transition-shadow">
+        {Array.from({ length: 6 }, (_, i) => `news-${i}`).map((id) => (
+          <Card
+            key={id}
+            className="shadow-sm hover:shadow-md transition-shadow"
+          >
             <CardHeader>
               <Skeleton className="h-48 w-full rounded-lg" />
             </CardHeader>

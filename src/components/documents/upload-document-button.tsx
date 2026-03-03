@@ -36,6 +36,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Select,
   SelectContent,
@@ -116,12 +117,19 @@ export default function UploadDocumentButton({
   usersFolders,
   department,
   currentFolder = "personal",
+  lockFolder = false,
+  lockedFolderName,
 }: {
   usersFolders: { name: string; path?: string }[];
   department: string;
   currentFolder?: string;
+  lockFolder?: boolean;
+  lockedFolderName?: string;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const effectiveFolder =
+    lockFolder && lockedFolderName ? lockedFolderName : currentFolder;
   const [files, setFiles] = useState<FileWithMetadata[]>();
   const [newTag, setNewTag] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -139,7 +147,7 @@ export default function UploadDocumentButton({
     resolver: zodResolver(uploadSchema),
     defaultValues: {
       fileMetadata: [],
-      folder: currentFolder,
+      folder: effectiveFolder,
       public: false,
       departmental: false,
       status: "active",
@@ -178,6 +186,19 @@ export default function UploadDocumentButton({
     control: form.control,
     name: "shares",
   });
+
+  useEffect(() => {
+    if (lockFolder && lockedFolderName) {
+      form.setValue("folder", lockedFolderName);
+    }
+  }, [lockFolder, lockedFolderName, form]);
+
+  // When dialog opens with folder lock, ensure folder value is set (e.g. after form reset)
+  useEffect(() => {
+    if (dialogOpen && lockFolder && lockedFolderName) {
+      form.setValue("folder", lockedFolderName);
+    }
+  }, [dialogOpen, lockFolder, lockedFolderName, form]);
 
   // Sync fileMetadata array with uploaded files
   useEffect(() => {
@@ -415,8 +436,10 @@ export default function UploadDocumentButton({
         }
         // Close dialog
         setDialogOpen(false);
-        // Refresh the page to show new documents
         router.refresh();
+        queryClient.invalidateQueries({ queryKey: ["all-documents"] });
+        queryClient.invalidateQueries({ queryKey: ["archived-documents"] });
+        queryClient.invalidateQueries({ queryKey: ["folder-documents"] });
 
         // Notify all dashboard components about the upload
         if (typeof window !== "undefined") {
@@ -473,53 +496,69 @@ export default function UploadDocumentButton({
         <form id="form-upload-document" onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
             <div className="grid gap-4 grid-cols-2 py-4">
-              <Controller
-                name="folder"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field
-                    orientation="responsive"
-                    data-invalid={fieldState.invalid}
-                  >
-                    <FieldContent>
-                      <FieldLabel htmlFor="folder">Folder *</FieldLabel>
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                      <Select
-                        name={field.name}
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <SelectTrigger
-                          name="folder"
-                          aria-invalid={fieldState.invalid}
-                          className="w-full"
+              {!lockFolder && (
+                <Controller
+                  name="folder"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field
+                      orientation="responsive"
+                      data-invalid={fieldState.invalid}
+                    >
+                      <FieldContent>
+                        <FieldLabel htmlFor="folder">Folder *</FieldLabel>
+                        {fieldState.invalid && (
+                          <FieldError errors={[fieldState.error]} />
+                        )}
+                        <Select
+                          name={field.name}
+                          value={field.value}
+                          onValueChange={field.onChange}
                         >
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent position="item-aligned">
-                          {[
-                            ...new Map(
-                              safeFolders.map((f) => [f.name.toLowerCase(), f]),
-                            ).values(),
-                          ].map((folder, idx) => (
-                            <SelectItem key={idx} value={folder.name}>
-                              {(folder.path ?? folder.name)
-                                .charAt(0)
-                                .toUpperCase() +
-                                (folder.path ?? folder.name).slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FieldDescription>
-                        Select folder to drop documents.
-                      </FieldDescription>
-                    </FieldContent>
-                  </Field>
-                )}
-              />
+                          <SelectTrigger
+                            name="folder"
+                            aria-invalid={fieldState.invalid}
+                            className="w-full"
+                          >
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent position="item-aligned">
+                            {[
+                              ...new Map(
+                                safeFolders.map((f) => [
+                                  f.name.toLowerCase(),
+                                  f,
+                                ]),
+                              ).values(),
+                            ].map((folder, _idx) => (
+                              <SelectItem key={folder.name} value={folder.name}>
+                                {(folder.path ?? folder.name)
+                                  .charAt(0)
+                                  .toUpperCase() +
+                                  (folder.path ?? folder.name).slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription>
+                          Select folder to drop documents.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+                  )}
+                />
+              )}
+              {lockFolder && lockedFolderName && (
+                <Field orientation="responsive">
+                  <FieldContent>
+                    <FieldLabel>Folder</FieldLabel>
+                    <p className="text-sm text-muted-foreground py-2">
+                      {lockedFolderName.charAt(0).toUpperCase() +
+                        lockedFolderName.slice(1)}
+                    </p>
+                  </FieldContent>
+                </Field>
+              )}
 
               <Controller
                 name="status"

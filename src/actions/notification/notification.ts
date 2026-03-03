@@ -78,3 +78,18 @@ export async function getUserNotifications() {
 
   return { success: true, data: userNotifications, error: null };
 }
+
+/** Mark Convex notifications as read that have the given referenceId (e.g. email id) for the current user. */
+export async function markNotificationsAsReadByReference(referenceId: number) {
+  try {
+    const currentUser = await getUser();
+    if (!currentUser) return;
+
+    await fetchMutation(api.notifications.markAsReadByReference, {
+      userId: currentUser.id,
+      referenceId,
+    });
+  } catch {
+    // Non-critical; avoid breaking callers
+  }
+}
