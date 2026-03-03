@@ -44,6 +44,16 @@ export async function getEmployee(employeeId: number) {
     .then((res) => res[0]);
 }
 
+export async function getEmployeeByAuthId(authId: string) {
+  if (!authId?.trim()) return null;
+  return await db
+    .select()
+    .from(employees)
+    .where(eq(employees.authId, authId.trim()))
+    .limit(1)
+    .then((res) => res[0] ?? null);
+}
+
 export async function updateEmployee(
   employeeId: number,
   updates: Partial<{

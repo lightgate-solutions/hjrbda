@@ -3,6 +3,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSelectMounted } from "@/hooks/use-select-mounted";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -106,6 +107,7 @@ export default function EmployeeHistory({
       employmentType: null,
     },
   });
+  const selectMounted = useSelectMounted();
 
   // Add mutation
   const addMutation = useMutation({
@@ -322,22 +324,26 @@ export default function EmployeeHistory({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employment Type *</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value || undefined}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select employment type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Full-time">Full-time</SelectItem>
-                        <SelectItem value="Part-time">Part-time</SelectItem>
-                        <SelectItem value="Contract">Contract</SelectItem>
-                        <SelectItem value="Intern">Intern</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {!selectMounted ? (
+                      <div className="h-9 w-full rounded-md border bg-muted" />
+                    ) : (
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select employment type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Full-time">Full-time</SelectItem>
+                          <SelectItem value="Part-time">Part-time</SelectItem>
+                          <SelectItem value="Contract">Contract</SelectItem>
+                          <SelectItem value="Intern">Intern</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

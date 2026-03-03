@@ -74,10 +74,22 @@ export function useProject(projectId: number | null, enabled = true) {
     queryKey: ["project", projectId],
     queryFn: async () => {
       if (!projectId) throw new Error("Project ID is required");
-      const { data } = await axios.get<ProjectResponse>(
-        `/api/projects/${projectId}`,
-      );
-      return data.project;
+      try {
+        const { data } = await axios.get<ProjectResponse>(
+          `/api/projects/${projectId}`,
+        );
+        return data.project;
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err)) {
+          const status = err.response?.status;
+          const message =
+            (err.response?.data as { error?: string })?.error ||
+            err.message ||
+            "Failed to load project";
+          throw { status, message, original: err };
+        }
+        throw err;
+      }
     },
     enabled: enabled && projectId !== null,
     staleTime: 30 * 1000, // 30 seconds

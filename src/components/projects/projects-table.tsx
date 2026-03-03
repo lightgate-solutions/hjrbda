@@ -2,7 +2,8 @@
 /** biome-ignore-all lint/a11y/useKeyWithClickEvents: <> */
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSelectMounted } from "@/hooks/use-select-mounted";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -124,9 +125,14 @@ export function ProjectsTable() {
   const isAdmin =
     currentUser?.role?.toLowerCase() === "admin" ||
     currentUser?.department?.toLowerCase() === "admin";
+  const isHrOrOperations =
+    (currentUser?.department ?? "").toLowerCase() === "hr" ||
+    (currentUser?.department ?? "").toLowerCase() === "operations";
 
   const canEdit = (project: Project) =>
-    isAdmin || project.creatorId === currentUser?.id;
+    !isHrOrOperations && (isAdmin || project.creatorId === currentUser?.id);
+
+  const selectMounted = useSelectMounted();
 
   return (
     <div className="space-y-4">
@@ -138,17 +144,21 @@ export function ProjectsTable() {
             onChange={(e) => setQ(e.target.value)}
             className="flex-1"
           />
-          <Select value={status} onValueChange={(v) => setStatus(v)}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-40 rounded-md border bg-background" />
+          ) : (
+            <Select value={status} onValueChange={(v) => setStatus(v)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <div className="flex items-center border rounded-md bg-background">
             <Button
               variant={view === "list" ? "secondary" : "ghost"}
@@ -202,7 +212,7 @@ export function ProjectsTable() {
               </svg>
             </Button>
           </div>
-          {canCreate && (
+          {canCreate && !isHrOrOperations && (
             <ProjectFormDialog
               onCompleted={() => refetch()}
               trigger={<Button className="ml-auto">New Project</Button>}

@@ -8,6 +8,7 @@ import {
   markEmailAsRead,
   getEmailStats,
 } from "@/actions/mail/email";
+import { markNotificationsAsReadByReference } from "@/actions/notification/notification";
 import { InboxClient } from "@/components/mail/inbox-client";
 import { getAllEmployees } from "@/actions/hr/employees";
 
@@ -40,12 +41,11 @@ export default async function ArchivePage({ searchParams }: PageProps) {
     if (emailResult.success && emailResult.data) {
       selectedEmail = emailResult.data;
 
-      // Mark as read if not already read
-      if (
-        emailResult.data.isRecipient &&
-        !emailResult.data.recipientStatus?.isRead
-      ) {
-        await markEmailAsRead(Number(emailId));
+      if (emailResult.data.isRecipient) {
+        if (!emailResult.data.recipientStatus?.isRead) {
+          await markEmailAsRead(Number(emailId));
+        }
+        await markNotificationsAsReadByReference(Number(emailId));
       }
     }
   }

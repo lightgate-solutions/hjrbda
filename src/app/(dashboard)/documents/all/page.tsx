@@ -78,8 +78,8 @@ export default function Page() {
 function AllDocumentsSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 9 }).map((_, i) => (
-        <Skeleton key={i} className="h-40 w-full" />
+      {Array.from({ length: 9 }, (_, i) => `skeleton-${i}`).map((id) => (
+        <Skeleton key={id} className="h-40 w-full" />
       ))}
     </div>
   );

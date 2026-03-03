@@ -41,11 +41,47 @@ export const createNotification = mutation({
   },
 });
 
-// Mark a single notification as read
+// Mark a single notification as read (only if userId matches)
 export const markAsRead = mutation({
-  args: { id: values.v.id("notifications") },
+  args: {
+    id: values.v.id("notifications"),
+    userId: values.v.optional(values.v.number()),
+  },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { isRead: true });
+    try {
+      const notification = await ctx.db.get(args.id);
+      if (!notification) return;
+      const docUserId = Number(notification.userId);
+      const argUserId = args.userId != null ? Number(args.userId) : null;
+      if (argUserId != null && docUserId !== argUserId) return;
+      await ctx.db.patch(args.id, { isRead: true });
+    } catch {
+      // Swallow to avoid generic Server Error to client
+    }
+  },
+});
+
+// Mark all notifications for a user that have the given referenceId as read
+export const markAsReadByReference = mutation({
+  args: {
+    userId: values.v.number(),
+    referenceId: values.v.number(),
+  },
+  handler: async (ctx, args) => {
+    const notifications = await ctx.db
+      .query("notifications")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), args.userId),
+          q.eq(q.field("referenceId"), args.referenceId),
+          q.eq(q.field("isRead"), false),
+        ),
+      )
+      .collect();
+
+    for (const notification of notifications) {
+      await ctx.db.patch(notification._id, { isRead: true });
+    }
   },
 });
 

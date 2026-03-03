@@ -81,6 +81,8 @@ export default function ProjectDetailPage({
   const {
     data: project,
     isLoading,
+    isError,
+    error: projectError,
     refetch: refetchProject,
   } = useProject(projectId);
 
@@ -106,12 +108,31 @@ export default function ProjectDetailPage({
       photoMilestoneFilter !== "all" ? Number(photoMilestoneFilter) : undefined,
   });
 
-  // Handle unauthorized access
+  // Handle access errors: show inline message for 403/404, redirect only for 401
+  const errorStatus =
+    isError &&
+    projectError &&
+    typeof projectError === "object" &&
+    "status" in projectError
+      ? (projectError as { status?: number }).status
+      : undefined;
+  const errorMessage =
+    isError &&
+    projectError &&
+    typeof projectError === "object" &&
+    "message" in projectError
+      ? (projectError as { message?: string }).message
+      : undefined;
+
   useEffect(() => {
-    if (!isLoading && !project) {
-      router.push("/unauthorized");
+    if (isLoading || project) return;
+    if (errorStatus === 401) {
+      router.push("/auth/login");
+      return;
     }
-  }, [project, isLoading, router]);
+    if (errorStatus === 403 || errorStatus === 404) return; // show inline below
+    if (!project && !errorStatus) router.push("/unauthorized");
+  }, [project, isLoading, router, errorStatus]);
 
   const milestones = project?.milestones ?? [];
 
@@ -135,7 +156,10 @@ export default function ProjectDetailPage({
     currentUser?.department?.toLowerCase() === "admin";
   const isCreator = project?.creatorId === currentUser?.id;
   const _isSupervisor = project?.supervisorId === currentUser?.id;
-  const isEditable = isAdmin || isCreator;
+  const isHrOrOperations =
+    (currentUser?.department ?? "").toLowerCase() === "hr" ||
+    (currentUser?.department ?? "").toLowerCase() === "operations";
+  const isEditable = !isHrOrOperations && (isAdmin || isCreator);
 
   async function saveMilestone() {
     if (!title || !dueDate) return;
@@ -362,6 +386,30 @@ export default function ProjectDetailPage({
 
   if (isLoading) {
     return <ProjectsPageSkeleton />;
+  }
+
+  if (!project && (errorStatus === 403 || errorStatus === 404)) {
+    return (
+      <div className="space-y-6 p-2 max-w-7xl mx-auto">
+        <Button
+          variant="ghost"
+          onClick={() => router.back()}
+          className="-ml-2 hover:bg-transparent hover:text-primary"
+        >
+          <ChevronLeft className="mr-1 h-4 w-4" /> Back to Projects
+        </Button>
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
+          <p className="font-medium text-destructive">
+            {errorStatus === 404
+              ? "Project not found."
+              : "You don't have permission to view this project."}
+          </p>
+          {errorMessage && (
+            <p className="mt-1 text-sm text-muted-foreground">{errorMessage}</p>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (

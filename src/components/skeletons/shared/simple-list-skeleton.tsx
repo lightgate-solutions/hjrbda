@@ -16,9 +16,9 @@ export function SimpleListSkeleton() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {Array.from({ length: 10 }).map((_, i) => (
+            {Array.from({ length: 10 }, (_, i) => `list-${i}`).map((id) => (
               <div
-                key={i}
+                key={id}
                 className="flex items-center gap-4 p-3 rounded-lg border"
               >
                 <Skeleton className="h-10 w-10 rounded-full" />

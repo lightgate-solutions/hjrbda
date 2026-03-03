@@ -212,7 +212,8 @@ export default function DocumentsGrid({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {doc.uploader} · {doc.updatedAt.toLocaleDateString()}
+                  {doc.uploader} ·{" "}
+                  {new Date(doc.updatedAt).toLocaleDateString()}
                 </p>
               </div>
             </div>

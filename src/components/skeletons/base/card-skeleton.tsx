@@ -32,10 +32,13 @@ export function CardSkeleton({
       )}
       <CardContent>
         <div className="space-y-3">
-          {Array.from({ length: contentLines }).map((_, i) => (
+          {Array.from({ length: contentLines }, (_, i) => ({
+            id: `line-${i}`,
+            isLast: i === contentLines - 1,
+          })).map(({ id, isLast }) => (
             <Skeleton
-              key={i}
-              className={cn("h-5", i === contentLines - 1 ? "w-2/3" : "w-full")}
+              key={id}
+              className={cn("h-5", isLast ? "w-2/3" : "w-full")}
             />
           ))}
         </div>

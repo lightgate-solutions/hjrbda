@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Search } from "lucide-react";
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 
 interface SearchResultType {
@@ -24,36 +24,65 @@ interface SearchResultType {
   };
 }
 
+async function fetchSearch(query: string): Promise<SearchResultType[]> {
+  const res = await fetch(
+    `/api/documents/search?q=${encodeURIComponent(query)}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("Search API error:", res.status, err);
+    throw new Error("Search failed");
+  }
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
 export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchResultType[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [queryInput, setQueryInput] = useState("");
 
-  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const runSearch = useCallback(async (query: string) => {
+    const q = query.trim();
+    if (!q) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
     setIsSearching(true);
-    e.preventDefault();
     try {
-      const formData = new FormData(e.target as any);
-      const query = formData.get("search");
-
-      if (query === "") {
-        toast.error("Please enter a search term");
-        return;
-      }
-
-      const res = await fetch("/api/upstash/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-      setSearchResults(data || []);
+      const data = await fetchSearch(q);
+      setSearchResults(data);
       setHasSearched(true);
-    } catch (_error) {
+    } catch {
       toast.error("Search failed");
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
+  }, []);
+
+  // Debounced search-as-you-type
+  useEffect(() => {
+    if (!queryInput.trim()) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
+    const timer = setTimeout(() => runSearch(queryInput), 300);
+    return () => clearTimeout(timer);
+  }, [queryInput, runSearch]);
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const q = queryInput.trim();
+    if (!q) {
+      toast.error("Please enter a search term");
+      return;
+    }
+    await runSearch(q);
   };
 
   return (
@@ -88,6 +117,8 @@ export default function Home() {
             <Input
               type="search"
               name="search"
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
               placeholder="Search for title, description, tag..."
               className="pl-10 h-10 text-sm bg-muted/40 border-border focus:bg-background focus:shadow-sm"
               aria-label="Search documents"

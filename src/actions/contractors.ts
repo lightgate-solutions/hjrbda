@@ -4,6 +4,11 @@ import { db } from "@/db";
 import { contractors } from "@/db/schema";
 import { asc, desc, eq, ilike, or } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireManager } from "@/actions/auth/dal";
+
+function isHrOrOperations(employee: { department?: string | null } | null) {
+  const dept = (employee?.department ?? "").toLowerCase().trim();
+  return dept === "hr" || dept === "operations";
+}
 import * as z from "zod";
 import { revalidatePath } from "next/cache";
 
@@ -68,6 +73,13 @@ export async function listContractors(params: {
 }
 
 export async function createContractor(input: ContractorInput) {
+  const authData = await requireAuth();
+  if (isHrOrOperations(authData.employee)) {
+    return {
+      contractor: null,
+      error: { reason: "HR and Operations cannot create contractors" },
+    };
+  }
   await requireAdmin();
 
   const parsed = contractorSchema.safeParse(input);
@@ -92,6 +104,13 @@ export async function updateContractor(
   id: number,
   input: Partial<ContractorInput>,
 ) {
+  const authData = await requireAuth();
+  if (isHrOrOperations(authData.employee)) {
+    return {
+      contractor: null,
+      error: { reason: "HR and Operations cannot edit contractors" },
+    };
+  }
   await requireAdmin();
   try {
     const [row] = await db
@@ -111,6 +130,13 @@ export async function updateContractor(
 }
 
 export async function deleteContractor(id: number) {
+  const authData = await requireAuth();
+  if (isHrOrOperations(authData.employee)) {
+    return {
+      success: false,
+      error: { reason: "HR and Operations cannot delete contractors" },
+    };
+  }
   await requireManager();
   try {
     await db.delete(contractors).where(eq(contractors.id, id));

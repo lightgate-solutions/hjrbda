@@ -24,9 +24,9 @@ export function DocumentsOverviewSkeleton() {
 
       {/* Folder Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
+        {Array.from({ length: 6 }, (_, i) => `overview-${i}`).map((id) => (
           <Card
-            key={i}
+            key={id}
             className="shadow-sm hover:shadow-md transition-shadow cursor-pointer"
           >
             <CardContent className="p-6">

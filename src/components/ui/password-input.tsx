@@ -148,20 +148,21 @@ export function PasswordInputStrengthChecker() {
         aria-valuetext={label}
         className="flex gap-1"
       >
-        {Array.from({ length: 4 }).map((_, i) => {
-          const color =
-            strengthResult.score >= 3 ? "bg-primary" : "bg-destructive";
-
-          return (
-            <div
-              key={i}
-              className={cn(
-                "h-1 flex-1 rounded-full",
-                strengthResult.score > i ? color : "bg-secondary",
-              )}
-            />
-          );
-        })}
+        {Array.from({ length: 4 }, (_, i) => ({ id: `strength-${i}`, i })).map(
+          ({ id, i }) => {
+            const color =
+              strengthResult.score >= 3 ? "bg-primary" : "bg-destructive";
+            return (
+              <div
+                key={id}
+                className={cn(
+                  "h-1 flex-1 rounded-full",
+                  strengthResult.score > i ? color : "bg-secondary",
+                )}
+              />
+            );
+          },
+        )}
       </div>
       <div className="flex justify-end text-sm text-muted-foreground">
         {strengthResult.feedback.warning == null ? (

@@ -16,8 +16,8 @@ export function MailLayoutSkeleton() {
           {/* Email List */}
           <ScrollArea className="h-screen">
             <div className="p-2 space-y-2">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="p-4 border rounded-lg space-y-2">
+              {Array.from({ length: 10 }, (_, i) => `mail-${i}`).map((id) => (
+                <div key={id} className="p-4 border rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
                     <Skeleton className="h-5 w-32" />
                     <Skeleton className="h-3 w-16" />

@@ -26,10 +26,14 @@ export async function GET(
     const projectId = Number(id);
 
     const isAdmin =
-      user.role.toLowerCase() === "admin" ||
-      user.department.toLowerCase() === "admin";
+      (user.role ?? "").toLowerCase().trim() === "admin" ||
+      (user.department ?? "").toLowerCase().trim() === "admin";
+    const isHrOrOperations =
+      (user.department ?? "").toLowerCase().trim() === "hr" ||
+      (user.department ?? "").toLowerCase().trim() === "operations";
+    const canViewAll = isAdmin || isHrOrOperations;
 
-    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    const hasAccess = await checkProjectAccess(projectId, user.id, canViewAll);
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have access to this project" },
@@ -170,10 +174,14 @@ export async function POST(
     const projectId = Number(id);
 
     const isAdmin =
-      user.role.toLowerCase() === "admin" ||
-      user.department.toLowerCase() === "admin";
+      (user.role ?? "").toLowerCase().trim() === "admin" ||
+      (user.department ?? "").toLowerCase().trim() === "admin";
+    const isHrOrOperations =
+      (user.department ?? "").toLowerCase().trim() === "hr" ||
+      (user.department ?? "").toLowerCase().trim() === "operations";
+    const canViewAll = isAdmin || isHrOrOperations;
 
-    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    const hasAccess = await checkProjectAccess(projectId, user.id, canViewAll);
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have access to this project" },
@@ -350,10 +358,14 @@ export async function DELETE(
     const projectId = Number(id);
 
     const isAdmin =
-      user.role.toLowerCase() === "admin" ||
-      user.department.toLowerCase() === "admin";
+      (user.role ?? "").toLowerCase().trim() === "admin" ||
+      (user.department ?? "").toLowerCase().trim() === "admin";
+    const isHrOrOperations =
+      (user.department ?? "").toLowerCase().trim() === "hr" ||
+      (user.department ?? "").toLowerCase().trim() === "operations";
+    const canViewAll = isAdmin || isHrOrOperations;
 
-    const hasAccess = await checkProjectAccess(projectId, user.id, isAdmin);
+    const hasAccess = await checkProjectAccess(projectId, user.id, canViewAll);
     if (!hasAccess) {
       return NextResponse.json(
         { error: "You do not have access to this project" },

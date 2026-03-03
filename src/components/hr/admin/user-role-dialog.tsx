@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSelectMounted } from "@/hooks/use-select-mounted";
 import { Label } from "@/components/ui/label";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
@@ -32,6 +33,7 @@ export function UserRoleDialog({
 }: UserRoleDialogProps) {
   const [selectedRole, setSelectedRole] = useState(user.role || "user");
   const [isLoading, setIsLoading] = useState(false);
+  const selectMounted = useSelectMounted();
 
   const handleUpdateRole = async () => {
     setIsLoading(true);
@@ -57,22 +59,26 @@ export function UserRoleDialog({
       <div className="grid gap-4 py-4">
         <div className="grid gap-2">
           <Label htmlFor="role">Select Role *</Label>
-          <Select value={selectedRole} onValueChange={setSelectedRole}>
-            <SelectTrigger id="role" className="w-full">
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLE_OPTIONS.map((option) => (
-                <SelectItem
-                  key={option.value}
-                  value={option.value}
-                  className="hover:bg-muted"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {!selectMounted ? (
+            <div className="h-9 w-full rounded-md border bg-muted" />
+          ) : (
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger id="role" className="w-full">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_OPTIONS.map((option) => (
+                  <SelectItem
+                    key={option.value}
+                    value={option.value}
+                    className="hover:bg-muted"
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
     </ConfirmationDialog>

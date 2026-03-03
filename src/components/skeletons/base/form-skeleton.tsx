@@ -21,12 +21,14 @@ export function FormSkeleton({
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {Array.from({ length: fieldCount }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ))}
+          {Array.from({ length: fieldCount }, (_, i) => `field-${i}`).map(
+            (id) => (
+              <div key={id} className="space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ),
+          )}
           {showSubmitButton && (
             <div className="flex gap-3 pt-4">
               <Skeleton className="h-10 w-24" />

@@ -20,6 +20,10 @@ export async function GET(
     const isAdmin =
       user.role.toLowerCase() === "admin" ||
       user.department.toLowerCase() === "admin";
+    const isHrOrOperations =
+      user.department.toLowerCase() === "hr" ||
+      user.department.toLowerCase() === "operations";
+    const canViewAll = isAdmin || isHrOrOperations;
 
     const project = await db.query.projects.findFirst({
       where: eq(projects.id, id),
@@ -70,7 +74,7 @@ export async function GET(
 
     // Check access control
     const hasAccess =
-      isAdmin ||
+      canViewAll ||
       project.creatorId === user.id ||
       project.supervisorId === user.id ||
       project.members.some((m) => m.employeeId === user.id);

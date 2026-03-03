@@ -2,8 +2,8 @@
 
 import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useVisibleUnreadNotificationCount } from "@/hooks/use-visible-unread-notification-count";
+import { NotificationCountBadge } from "./notification-count-badge";
 
 interface NotificationBellProps {
   employeeId: number;
@@ -12,17 +12,13 @@ interface NotificationBellProps {
 export default function NotificationBell({
   employeeId,
 }: NotificationBellProps) {
-  const unreadCount = useQuery(api.notifications.getUnreadCount, {
-    userId: employeeId,
-  });
+  const count = useVisibleUnreadNotificationCount(employeeId);
 
   return (
     <Link href="/notification">
-      <div className="relative cursor-pointer hover:text-primary transition-colors">
+      <div className="relative inline-flex cursor-pointer transition-colors hover:text-primary">
         <Bell className="h-5 w-5" />
-        {(unreadCount ?? 0) > 0 && (
-          <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" />
-        )}
+        <NotificationCountBadge count={count} />
       </div>
     </Link>
   );

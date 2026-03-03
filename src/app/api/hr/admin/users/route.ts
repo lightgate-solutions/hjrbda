@@ -1,4 +1,5 @@
-import { getUsers } from "@/actions/auth/users";
+import { getUsers, listUsersFromDb } from "@/actions/auth/users";
+import { getEmployeeByAuthId } from "@/actions/hr/employees";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import type { NextRequest } from "next/server";
@@ -6,7 +7,6 @@ import { NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication and admin role
     const h = await headers();
     const session = await auth.api.getSession({ headers: h });
     const authUserId = session?.user?.id;
@@ -16,9 +16,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only admin can access this endpoint - normalize role like dashboard does
     const normalizedRole = userRole?.toLowerCase().trim() || "";
-    if (normalizedRole !== "admin") {
+    const isAdmin = normalizedRole === "admin";
+    const employee = await getEmployeeByAuthId(authUserId);
+    const department = (employee?.department ?? "").toLowerCase().trim();
+    const isHr = normalizedRole === "hr" || department === "hr";
+
+    if (!isAdmin && !isHr) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -27,26 +31,39 @@ export async function GET(request: NextRequest) {
     const limit = Number(searchParams.get("limit") || "10");
     const offset = (page - 1) * limit;
     const sortBy = searchParams.get("sortBy") || undefined;
-    let sortDirection = searchParams.get("sortDirection") || undefined;
-    if (sortDirection !== "asc" && sortDirection !== "desc") {
-      sortDirection = undefined;
-    }
-    const role = searchParams.get("role") || undefined;
+    const sortDirectionParam = searchParams.get("sortDirection") ?? undefined;
+    const sortDirection: "asc" | "desc" | undefined =
+      sortDirectionParam === "asc" || sortDirectionParam === "desc"
+        ? sortDirectionParam
+        : undefined;
+    const roleFilter = searchParams.get("role") || undefined;
     const status = searchParams.get("status") || undefined;
     const email = searchParams.get("email") || undefined;
     const name = searchParams.get("name") || undefined;
 
     // Pass all filters and sort to getUsers
-    const { users, total } = await getUsers({
-      limit,
-      offset,
-      sortBy,
-      sortDirection,
-      role,
-      status,
-      email,
-      name,
-    });
+    // Admin uses Better Auth listUsers; HR uses direct DB list
+    const { users, total } = isHr
+      ? await listUsersFromDb({
+          limit,
+          offset,
+          sortBy,
+          sortDirection,
+          role: roleFilter,
+          status,
+          email,
+          name,
+        })
+      : await getUsers({
+          limit,
+          offset,
+          sortBy,
+          sortDirection,
+          role: roleFilter,
+          status,
+          email,
+          name,
+        });
 
     return NextResponse.json({
       users,

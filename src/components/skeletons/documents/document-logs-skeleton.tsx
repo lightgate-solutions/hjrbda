@@ -3,9 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function DocumentLogsSkeleton() {
   return (
     <div className="space-y-3">
-      {Array.from({ length: 5 }).map((_, i) => (
+      {Array.from({ length: 5 }, (_, i) => `log-${i}`).map((id) => (
         <div
-          key={i}
+          key={id}
           className="flex items-center justify-between border rounded-md p-3"
         >
           <div className="space-y-2 flex-1">

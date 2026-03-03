@@ -77,7 +77,12 @@ export async function listProjects(params: {
       )
     : undefined;
 
-  if (!isAdmin) {
+  const isHrOrOperations =
+    employee.department.toLowerCase() === "hr" ||
+    employee.department.toLowerCase() === "operations";
+  const canViewAll = isAdmin || isHrOrOperations;
+
+  if (!canViewAll) {
     const accessFilter = or(
       eq(projects.creatorId, employee.id),
       eq(projects.supervisorId, employee.id),
@@ -129,6 +134,10 @@ export async function getProject(id: number) {
   const isAdmin =
     employee.role.toLowerCase() === "admin" ||
     employee.department.toLowerCase() === "admin";
+  const isHrOrOperations =
+    employee.department.toLowerCase() === "hr" ||
+    employee.department.toLowerCase() === "operations";
+  const canViewAll = isAdmin || isHrOrOperations;
 
   const project = await db.query.projects.findFirst({
     where: eq(projects.id, id),
@@ -149,7 +158,7 @@ export async function getProject(id: number) {
   if (!project) return null;
 
   const hasAccess =
-    isAdmin ||
+    canViewAll ||
     project.creatorId === employee.id ||
     project.supervisorId === employee.id ||
     project.members.some((m) => m.employeeId === employee.id);
@@ -163,6 +172,15 @@ export async function getProject(id: number) {
 
 export async function createProject(input: ProjectInput) {
   const { employee } = await requireAuth();
+  const isHrOrOperations =
+    (employee.department ?? "").toLowerCase() === "hr" ||
+    (employee.department ?? "").toLowerCase() === "operations";
+  if (isHrOrOperations) {
+    return {
+      project: null,
+      error: { reason: "HR and Operations cannot create projects" },
+    };
+  }
 
   const parsed = projectSchema.safeParse(input);
   if (!parsed.success) {
@@ -238,6 +256,15 @@ export async function createProject(input: ProjectInput) {
 
 export async function updateProject(id: number, input: Partial<ProjectInput>) {
   const { employee } = await requireAuth();
+  const isHrOrOperations =
+    (employee.department ?? "").toLowerCase() === "hr" ||
+    (employee.department ?? "").toLowerCase() === "operations";
+  if (isHrOrOperations) {
+    return {
+      project: null,
+      error: { reason: "HR and Operations cannot edit projects" },
+    };
+  }
   const isAdmin =
     employee.role.toLowerCase() === "admin" ||
     employee.department.toLowerCase() === "admin";
@@ -325,6 +352,15 @@ export async function updateProject(id: number, input: Partial<ProjectInput>) {
 
 export async function deleteProject(id: number) {
   const { employee } = await requireAuth();
+  const isHrOrOperations =
+    (employee.department ?? "").toLowerCase() === "hr" ||
+    (employee.department ?? "").toLowerCase() === "operations";
+  if (isHrOrOperations) {
+    return {
+      success: false,
+      error: { reason: "HR and Operations cannot delete projects" },
+    };
+  }
   const isAdmin =
     employee.role.toLowerCase() === "admin" ||
     employee.department.toLowerCase() === "admin";
@@ -358,6 +394,10 @@ export async function getProjectExportData(id: number) {
   const isAdmin =
     employee.role.toLowerCase() === "admin" ||
     employee.department.toLowerCase() === "admin";
+  const isHrOrOperations =
+    employee.department.toLowerCase() === "hr" ||
+    employee.department.toLowerCase() === "operations";
+  const canViewAll = isAdmin || isHrOrOperations;
 
   // Get project with all related data
   const project = await db.query.projects.findFirst({
@@ -414,7 +454,7 @@ export async function getProjectExportData(id: number) {
 
   // Check access
   const hasAccess =
-    isAdmin ||
+    canViewAll ||
     project.creatorId === employee.id ||
     project.supervisorId === employee.id ||
     project.members.some((m) => m.employeeId === employee.id);

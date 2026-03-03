@@ -75,6 +75,10 @@ export default async function DashboardLayout({
 
   const foldersNames = await getFoldersNames(foldersId);
 
+  const currentFolderRow = foldersRaw.find((f) => f.id === currentFolderId);
+  const lockFolder = !!currentFolderRow;
+  const currentFolderName = currentFolderRow?.name ?? "personal";
+
   const links = foldersId.map((_id, index) => {
     const href = `/documents/f/${foldersId.slice(0, index + 1).join("/")}`;
     return {
@@ -95,7 +99,12 @@ export default async function DashboardLayout({
             Browse and manage folder contents
           </p>
         </div>
-        <FoldersActions usersFolders={folders} department={user.department} />
+        <FoldersActions
+          usersFolders={folders}
+          department={user.department}
+          lockFolder={lockFolder}
+          lockedFolderName={currentFolderName}
+        />
       </div>
 
       {/* Breadcrumb */}

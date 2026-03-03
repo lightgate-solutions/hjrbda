@@ -17,9 +17,11 @@ export function FiltersSkeleton({
   return (
     <div className={cn("flex flex-wrap items-center gap-3", className)}>
       {showSearch && <Skeleton className="h-10 w-64" />}
-      {Array.from({ length: dropdownCount }).map((_, i) => (
-        <Skeleton key={i} className="h-10 w-32" />
-      ))}
+      {Array.from({ length: dropdownCount }, (_, i) => `filter-${i}`).map(
+        (id) => (
+          <Skeleton key={id} className="h-10 w-32" />
+        ),
+      )}
       {showDateRange && <Skeleton className="h-10 w-48" />}
     </div>
   );

@@ -1,5 +1,6 @@
 "use server";
 import { db } from "@/db";
+import { account, session, user as authUser } from "@/db/schema/auth";
 import { documentFolders } from "@/db/schema";
 import { employees } from "@/db/schema/hr";
 import { notification_preferences } from "@/db/schema";
@@ -8,6 +9,14 @@ import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { createNotification } from "../notification/notification";
+import { requireHROrAdmin } from "./dal";
+
+async function isHrCaller() {
+  const authData = await requireHROrAdmin();
+  const role = (authData.role ?? "").toLowerCase().trim();
+  const empDept = (authData.employee?.department ?? "").toLowerCase().trim();
+  return role !== "admin" && empDept !== "admin";
+}
 
 export async function banUser(
   userId: string,
@@ -15,6 +24,25 @@ export async function banUser(
   banExpiresIn?: number,
 ) {
   try {
+    if (await isHrCaller()) {
+      const banExpires =
+        banExpiresIn != null
+          ? new Date(Date.now() + banExpiresIn * 1000)
+          : null;
+      await db
+        .update(authUser)
+        .set({
+          banned: true,
+          banReason,
+          banExpires,
+        })
+        .where(eq(authUser.id, userId));
+      return {
+        success: { reason: "User banned successfully!" },
+        error: null,
+        data: undefined,
+      };
+    }
     const res = await auth.api.banUser({
       body: {
         userId,
@@ -45,12 +73,40 @@ export async function banUser(
 
 export async function unbanUser(userId: string) {
   try {
+    if (await isHrCaller()) {
+      await db
+        .update(authUser)
+        .set({ banned: false, banReason: null, banExpires: null })
+        .where(eq(authUser.id, userId));
+
+      const employee = await db
+        .select()
+        .from(employees)
+        .where(eq(employees.authId, userId))
+        .limit(1)
+        .then((r) => r[0]);
+
+      if (employee?.id) {
+        await createNotification({
+          user_id: employee.id,
+          title: "Account Unbanned",
+          message:
+            "Your account has been unbanned. You can now access the system again.",
+          notification_type: "message",
+          reference_id: employee.id,
+        });
+      }
+      return {
+        success: { reason: "User has been unbanned successfully!" },
+        error: null,
+        data: undefined,
+      };
+    }
     const res = await auth.api.unbanUser({
       body: { userId },
       headers: await headers(),
     });
 
-    // Notify the user they've been unbanned
     const employee = await db
       .select()
       .from(employees)
@@ -93,6 +149,17 @@ export async function unbanUser(userId: string) {
 
 export async function deleteUser(userId: string) {
   try {
+    if (await isHrCaller()) {
+      await db.delete(session).where(eq(session.userId, userId));
+      await db.delete(account).where(eq(account.userId, userId));
+      await db.delete(employees).where(eq(employees.authId, userId));
+      await db.delete(authUser).where(eq(authUser.id, userId));
+      return {
+        success: { reason: "User has been deleted permanently!" },
+        error: null,
+        data: undefined,
+      };
+    }
     await auth.api.removeUser({
       body: { userId },
       headers: await headers(),
@@ -123,6 +190,14 @@ export async function deleteUser(userId: string) {
 
 export async function revokeUserSessions(userId: string) {
   try {
+    if (await isHrCaller()) {
+      await db.delete(session).where(eq(session.userId, userId));
+      return {
+        success: { reason: "User session has been revoked!" },
+        error: null,
+        data: undefined,
+      };
+    }
     await auth.api.revokeUserSessions({
       body: { userId },
       headers: await headers(),
@@ -170,6 +245,7 @@ export async function createUser(data: {
   autoVerify?: boolean;
   isManager: boolean;
 }) {
+  await requireHROrAdmin();
   const { autoVerify, ...userData } = data;
 
   try {
@@ -266,6 +342,34 @@ export async function createUser(data: {
 
 export async function updateUserRole(userId: string, role: string) {
   try {
+    if (await isHrCaller()) {
+      await db
+        .update(authUser)
+        .set({ role: role as "user" | "admin" | "hr" })
+        .where(eq(authUser.id, userId));
+
+      const employee = await db
+        .select()
+        .from(employees)
+        .where(eq(employees.authId, userId))
+        .limit(1)
+        .then((r) => r[0]);
+
+      if (employee?.id) {
+        await createNotification({
+          user_id: employee.id,
+          title: "Role Updated",
+          message: `Your account role has been changed to: ${role}`,
+          notification_type: "message",
+          reference_id: employee.id,
+        });
+      }
+      return {
+        success: { reason: "Updated users role successfully" },
+        error: null,
+        data: undefined,
+      };
+    }
     await auth.api.setRole({
       body: {
         userId,
@@ -274,7 +378,6 @@ export async function updateUserRole(userId: string, role: string) {
       headers: await headers(),
     });
 
-    // Notify the user about their role change
     const employee = await db
       .select()
       .from(employees)

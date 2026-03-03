@@ -2,7 +2,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: <> */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -136,6 +136,47 @@ export function ReplyForwardEmail({
       attachmentIds: [],
     },
   });
+
+  // When opening in reply mode, pre-select the sender as recipient so the "To" field shows them.
+  // Use useLayoutEffect so the To field is populated before first paint. Match by id first, then by email.
+  useLayoutEffect(() => {
+    if (!open) return;
+    if (mode === "reply" && originalEmail) {
+      const byId = users.find(
+        (u) => Number(u.id) === Number(originalEmail.senderId),
+      );
+      const byEmail =
+        !byId &&
+        originalEmail.senderEmail &&
+        users.find(
+          (u) =>
+            u.email &&
+            String(u.email).toLowerCase() ===
+              String(originalEmail.senderEmail).toLowerCase(),
+        );
+      const sender = byId ?? byEmail;
+      if (sender) {
+        setSelectedUsers([sender]);
+        form.setValue("recipientIds", [sender.id]);
+      } else {
+        form.setValue("recipientIds", [originalEmail.senderId]);
+      }
+      form.setValue("subject", getDefaultSubject());
+      form.setValue("body", getDefaultBody());
+    } else if (mode === "forward") {
+      setSelectedUsers([]);
+      form.setValue("recipientIds", []);
+      form.setValue("subject", getDefaultSubject());
+      form.setValue("body", getDefaultBody());
+    }
+  }, [
+    open,
+    mode,
+    originalEmail?.id,
+    originalEmail?.senderId,
+    originalEmail?.senderEmail,
+    users.length,
+  ]);
 
   const onSubmit = async (data: ReplyForwardFormData) => {
     const result =

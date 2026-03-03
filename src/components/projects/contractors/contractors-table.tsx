@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Table,
   TableBody,
@@ -35,6 +36,11 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function ContractorsTable() {
+  const { data: currentUser } = useCurrentUser();
+  const isHrOrOperations =
+    (currentUser?.department ?? "").toLowerCase() === "hr" ||
+    (currentUser?.department ?? "").toLowerCase() === "operations";
+
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["contractors"],
     queryFn: () => listContractors({ limit: 100 }),
@@ -72,15 +78,17 @@ export default function ContractorsTable() {
             Manage project contractors and vendors
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setSelectedContractor(null);
-            setIsFormOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Contractor
-        </Button>
+        {!isHrOrOperations && (
+          <Button
+            onClick={() => {
+              setSelectedContractor(null);
+              setIsFormOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Contractor
+          </Button>
+        )}
       </div>
 
       <Card className="shadow-sm">
@@ -115,24 +123,28 @@ export default function ContractorsTable() {
                     <TableCell>{contractor.email || "-"}</TableCell>
                     <TableCell>{contractor.phone || "-"}</TableCell>
                     <TableCell className="text-right space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedContractor(contractor);
-                          setIsFormOpen(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:bg-destructive/10"
-                        onClick={() => setContractorToDelete(contractor.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {!isHrOrOperations && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedContractor(contractor);
+                              setIsFormOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => setContractorToDelete(contractor.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

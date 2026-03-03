@@ -5,6 +5,7 @@
 "use client";
 import { Dropzone, type FileWithMetadata } from "@/components/ui/dropzone";
 import { useState } from "react";
+import { useSelectMounted } from "@/hooks/use-select-mounted";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
@@ -75,6 +76,7 @@ export default function EmployeeDocumentsUpload({
       documentName: "",
     },
   });
+  const selectMounted = useSelectMounted();
 
   const uploadFile = async (file: File): Promise<string | null | undefined> => {
     setFiles((prevFiles) =>
@@ -286,26 +288,30 @@ export default function EmployeeDocumentsUpload({
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
-                    <Select
-                      name={field.name}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger
-                        name="documentType"
-                        aria-invalid={fieldState.invalid}
-                        className="w-full"
+                    {!selectMounted ? (
+                      <div className="h-9 w-full rounded-md border bg-muted" />
+                    ) : (
+                      <Select
+                        name={field.name}
+                        value={field.value}
+                        onValueChange={field.onChange}
                       >
-                        <SelectValue placeholder="Select document type" />
-                      </SelectTrigger>
-                      <SelectContent position="item-aligned">
-                        {documentTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        <SelectTrigger
+                          name="documentType"
+                          aria-invalid={fieldState.invalid}
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Select document type" />
+                        </SelectTrigger>
+                        <SelectContent position="item-aligned">
+                          {documentTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <FieldDescription>
                       Select the type of document you are uploading
                     </FieldDescription>

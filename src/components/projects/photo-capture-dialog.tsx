@@ -551,6 +551,7 @@ export function PhotoCaptureDialog({
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {photos.map((photo, i) => (
                 <div key={photo.previewUrl} className="relative group">
+                  {/* biome-ignore lint/performance/noImgElement: blob URL preview, next/image not suitable */}
                   <img
                     src={photo.previewUrl}
                     alt={`Capture ${i + 1}`}

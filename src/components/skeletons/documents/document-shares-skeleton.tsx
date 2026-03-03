@@ -13,9 +13,9 @@ export function DocumentSharesSkeleton() {
       </div>
       <div className="space-y-2">
         <Skeleton className="h-4 w-32" />
-        {Array.from({ length: 3 }).map((_, i) => (
+        {Array.from({ length: 3 }, (_, i) => `share-${i}`).map((id) => (
           <div
-            key={i}
+            key={id}
             className="flex items-center justify-between border rounded p-2"
           >
             <Skeleton className="h-4 w-48" />

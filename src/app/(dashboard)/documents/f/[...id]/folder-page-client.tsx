@@ -58,8 +58,8 @@ function FolderPageSkeleton() {
         <Skeleton className="h-10 w-32" />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-32 w-full" />
+        {Array.from({ length: 6 }, (_, i) => `folder-skel-${i}`).map((id) => (
+          <Skeleton key={id} className="h-32 w-full" />
         ))}
       </div>
     </div>

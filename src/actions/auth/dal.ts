@@ -87,11 +87,16 @@ export const requireAdmin = cache(async () => {
   return authData;
 });
 
-// Helper to require HR or admin role
+// Helper to require HR or admin role (by auth role or employee department)
 export const requireHROrAdmin = cache(async () => {
   const authData = await requireAuth();
+  const role = (authData.role ?? "").toLowerCase().trim();
+  const empRole = (authData.employee?.role ?? "").toLowerCase().trim();
+  const empDept = (authData.employee?.department ?? "").toLowerCase().trim();
+  const isAdmin = role === "admin" || empDept === "admin";
+  const isHr = role === "hr" || empRole === "hr" || empDept === "hr";
 
-  if (authData.role !== "admin" && authData.role !== "hr") {
+  if (!isAdmin && !isHr) {
     throw new Error("Forbidden: HR or Admin access required");
   }
 
