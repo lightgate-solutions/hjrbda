@@ -25,7 +25,8 @@ import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
 import type { User } from "better-auth";
 import { useMemo } from "react";
-import { useVisibleUnreadNotificationCount } from "@/hooks/use-visible-unread-notification-count";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 const data = {
   org: [
@@ -134,7 +135,11 @@ export function AppSidebar({
     employeeDepartment === "admin";
   const isOperations =
     (employeeDepartment ?? "").toLowerCase().trim() === "operations";
-  const unreadCount = useVisibleUnreadNotificationCount(employeeId);
+  // Use simple Convex unread count in sidebar to avoid async validation loop (React #185)
+  const rawUnread = useQuery(api.notifications.getUnreadCount, {
+    userId: employeeId,
+  });
+  const unreadCount = typeof rawUnread === "number" ? rawUnread : 0;
 
   const groupedItems = useMemo(() => {
     const base = [...data.navMain];
