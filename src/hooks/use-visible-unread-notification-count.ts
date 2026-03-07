@@ -5,12 +5,17 @@ import { useMemo, useEffect, useState, useRef } from "react";
 import { api } from "../../convex/_generated/api";
 import { getNotificationViewUrl } from "@/lib/notification-view-url";
 
+function setToKey(s: Set<string>): string {
+  return Array.from(s).sort().join(",");
+}
+
 export function useVisibleUnreadNotificationCount(employeeId: number): number {
   const notifications = useQuery(api.notifications.getUserNotifications, {
     userId: employeeId,
   });
   const list = Array.isArray(notifications) ? notifications : [];
   const [validIds, setValidIds] = useState<Set<string>>(new Set());
+  const lastValidIdsKeyRef = useRef<string>("");
   // Stable dependency: only re-run when notification ids change, not when array reference changes (avoids infinite loop with Convex)
   const listKey = useMemo(
     () =>
@@ -50,7 +55,10 @@ export function useVisibleUnreadNotificationCount(employeeId: number): number {
           ids.add(n._id);
         }
       }
-      if (!cancelled) setValidIds(ids);
+      if (!cancelled && setToKey(ids) !== lastValidIdsKeyRef.current) {
+        lastValidIdsKeyRef.current = setToKey(ids);
+        setValidIds(ids);
+      }
     }
 
     validate();
